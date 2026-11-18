@@ -8,6 +8,7 @@ import { store, bus } from '../core/store.js';
 import { ui } from '../core/ui.js';
 import { audio } from '../core/audio.js';
 import { touch } from '../core/touch.js';
+import { loading } from '../core/loading.js';
 import { buildVillage, startFallingLeaves } from '../world/village.js';
 import { Garden, plotState } from '../world/garden.js';
 import { Cat } from '../world/cat.js';
@@ -140,6 +141,8 @@ export class TownScene extends Phaser.Scene {
 
     audio.setAmbience('town');
     cam.fadeIn(500, 0, 0, 0);
+    // 小鎮畫好第一格後，封面載入畫面淡出
+    this.events.once('postupdate', () => loading.hide());
     // 首次進入：歡迎教學（只自動出現一次）
     this.time.delayedCall(450, () => this.showWelcome());
   }

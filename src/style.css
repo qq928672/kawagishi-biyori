@@ -331,6 +331,24 @@ kbd {
   .tc-stick-base { left: calc(var(--sal) + 86px); top: calc(100% - var(--sab) - 86px); }
 }
 
+/* ---------- 故事館展品視窗：手機（畫面矮或窄）改成接近全螢幕，文字區最大化 ---------- */
+@media (max-height: 520px), (max-width: 560px) {
+  .modal-overlay:has(.modal-exhibit) {
+    padding: calc(6px + var(--sat)) calc(8px + var(--sar)) calc(6px + var(--sab)) calc(8px + var(--sal));
+  }
+  .modal-exhibit { width: 100%; height: 100%; max-width: 900px; border-radius: 14px; border-width: 2px; }
+  .modal-exhibit .modal-header { padding: 4px 6px 4px 16px; }
+  .modal-exhibit .modal-title { font-size: 18px; }
+  .modal-exhibit .modal-body { flex: 1; padding: 10px 16px 16px; font-size: 15px; line-height: 1.65; }
+  .modal-exhibit .modal-footer { display: none; } /* 右上 × 關閉即可，把高度留給內容 */
+  .modal-exhibit .exhibit-subtitle { font-size: 15px; }
+  .modal-exhibit .exhibit-role { grid-template-columns: max-content 1fr; gap: 4px 12px; padding: 8px 12px; }
+  .modal-exhibit .exhibit-images { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+}
+@media (max-width: 560px) {
+  .modal-exhibit .exhibit-role { grid-template-columns: 1fr; }
+}
+
 /* 坐著拍照時：介面全部收起，輕觸畫面任一處起身 */
 .tc-photo-tap { position: absolute; inset: 0; z-index: 4; touch-action: none; }
 

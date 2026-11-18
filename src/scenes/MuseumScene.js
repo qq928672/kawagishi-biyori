@@ -5,6 +5,7 @@ import { store } from '../core/store.js';
 import { ui } from '../core/ui.js';
 import { SHEETS, TEX_SCALE } from '../config/assets.js';
 import { audio } from '../core/audio.js';
+import { touch } from '../core/touch.js';
 import { rng } from '../world/village.js';
 import { idleFrame } from './BootScene.js';
 
@@ -154,10 +155,13 @@ export class MuseumScene extends Phaser.Scene {
     ZONES.forEach((z, i) => {
       const [a, b] = ZONE_X[z.id];
       const cx = (a + b) / 2;
+      // 手機畫面縮小約一半：展區牌改用大字與較寬的木牌
+      const big = touch.enabled;
+      const hw = big ? 150 : 96;
       g.fillStyle(PALETTE.woodDark, 1).fillRect(cx - 60, 36, 2, 18).fillRect(cx + 58, 36, 2, 18);
-      g.fillStyle(PALETTE.woodDark, 1).fillRoundedRect(cx - 96, 52, 192, 30, 7);
-      g.fillStyle(0xf3dfb2, 1).fillRoundedRect(cx - 92, 55, 184, 24, 6);
-      this.add.text(cx, 67, `${i + 1}．${z.title}`, { fontFamily: FONT, fontSize: '15px', fontStyle: 'bold', color: '#5a3a22', resolution: 2 }).setOrigin(0.5).setDepth(2);
+      g.fillStyle(PALETTE.woodDark, 1).fillRoundedRect(cx - hw, 52, hw * 2, big ? 36 : 30, 7);
+      g.fillStyle(0xf3dfb2, 1).fillRoundedRect(cx - hw + 4, 55, hw * 2 - 8, big ? 30 : 24, 6);
+      this.add.text(cx, big ? 70 : 67, `${i + 1}．${z.title}`, { fontFamily: FONT, fontSize: big ? '20px' : '15px', fontStyle: 'bold', color: '#5a3a22', resolution: 2 }).setOrigin(0.5).setDepth(2);
     });
   }
 
@@ -320,7 +324,7 @@ export class MuseumScene extends Phaser.Scene {
         g.fillStyle(PALETTE.wood, 1).fillRoundedRect(L.x - 70, top + 2, 136, 54, 8);
         g.fillStyle(0xf3dfb2, 1).fillRoundedRect(L.x - 64, top + 8, 124, 42, 6);
         g.fillStyle(PALETTE.woodDark, 1).fillTriangle(L.x + 40, top + 18, L.x + 40, top + 40, L.x + 54, top + 29);
-        this.add.text(L.x - 8, top + 29, '作品入口', { fontFamily: FONT, fontSize: '16px', fontStyle: 'bold', color: '#5a3a22', resolution: 2 }).setOrigin(0.5).setDepth(6);
+        this.add.text(L.x - 8, top + 29, '作品入口', { fontFamily: FONT, fontSize: touch.enabled ? '21px' : '16px', fontStyle: 'bold', color: '#5a3a22', resolution: 2 }).setOrigin(0.5).setDepth(6);
         break;
       }
       default:
@@ -328,7 +332,9 @@ export class MuseumScene extends Phaser.Scene {
     }
     // 展品標題（簡短；指示牌本身已有文字就不重複）
     const plateY = L.y + 14;
-    const t = ex.prop === 'sign' ? null : this.add.text(L.x, plateY, ex.title, { fontFamily: FONT, fontSize: '13px', fontStyle: 'bold', color: '#fff8ea', resolution: 2, backgroundColor: 'rgba(110,75,58,0.85)', padding: { x: 7, y: 2 } }).setOrigin(0.5, 0).setDepth(8);
+    // 手機：展品名稱改用大字（畫面縮小後約 12px，仍看得清楚）
+    const big = touch.enabled;
+    const t = ex.prop === 'sign' ? null : this.add.text(L.x, plateY, ex.title, { fontFamily: FONT, fontSize: big ? '20px' : '13px', fontStyle: 'bold', color: '#fff8ea', resolution: 2, backgroundColor: 'rgba(110,75,58,0.9)', padding: big ? { x: 9, y: 3 } : { x: 7, y: 2 } }).setOrigin(0.5, 0).setDepth(8);
     ex._label = t;
 
     const zone = this.add.zone(L.x, L.y - L.h / 2 + 10, L.w + 10, L.h + 30).setInteractive({ useHandCursor: true }).setDepth(40);
@@ -352,6 +358,11 @@ export class MuseumScene extends Phaser.Scene {
     h.lineStyle(4, 0xf6d58c, 1);
     h.strokeRoundedRect(L.x - L.w / 2 - 8, L.y - L.h - 8, L.w + 16, L.h + 40, 10);
     this.arrow.setPosition(L.x, L.y - L.h - 22);
+    // 手機：目前選擇的展品以 HTML 大字顯示在畫面下方
+    if (touch.enabled) {
+      const zone = ZONES.find((z) => z.id === ex.zone);
+      ui.setStatus(`${zone ? `${zone.title}｜` : ''}${ex.title}　按「查看」看介紹`);
+    }
     // 主角走到展品前
     const tx = Phaser.Math.Clamp(L.x, 120, 1160);
     const shadow = this.children.getByName('playerShadow');
@@ -470,6 +481,7 @@ export class MuseumScene extends Phaser.Scene {
     if (this.leaving || ui.isModalOpen()) return;
     this.leaving = true;
     ui.setActivity(null);
+    ui.setStatus(null);
     this.cameras.main.fadeOut(280, 0, 0, 0);
     this.cameras.main.once('camerafadeoutcomplete', () => {
       this.scene.wake('Town');

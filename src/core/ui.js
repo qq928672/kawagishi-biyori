@@ -132,7 +132,7 @@ export const ui = {
 
   guardExplore() {
     if (store.mode !== 'explore') {
-      this.toast('請先按 Esc 結束目前的活動');
+      this.toast(touch.pick('請先按 Esc 結束目前的活動', '請先按「返回」結束目前的活動'));
       return false;
     }
     return true;

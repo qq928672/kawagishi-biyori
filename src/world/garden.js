@@ -5,6 +5,7 @@ import { TEX_SCALE } from '../config/assets.js';
 import { save } from '../core/save.js';
 import { ui } from '../core/ui.js';
 import { audio } from '../core/audio.js';
+import { touch } from '../core/touch.js';
 import { openSeedPicker } from '../ui/panels.js';
 
 // 菜園：4 塊田地
@@ -95,7 +96,7 @@ export class Garden {
         this.plots[i] = { crop: crop.id, state: 'planted', readyAt: 0 };
         save.persist();
         audio.play('plant');
-        ui.toast(`種下了${crop.name}。按 E 澆水，作物才會開始成長。`);
+        ui.toast(`種下了${crop.name}。${touch.pick('按 E 澆水', '按「澆水」')}，作物才會開始成長。`);
         this.refresh();
       });
     } else if (st === 'planted') {

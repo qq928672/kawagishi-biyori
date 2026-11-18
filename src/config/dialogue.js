@@ -24,3 +24,9 @@ export const VILLAGE_MAP_TIPS = [
   '主要路線：村口 → 故事館 → 生活街 → 大樹廣場 → 住宅菜園 → 河岸。',
   '木橋可以走到對岸，那裡也有一個釣點。',
 ];
+
+// 手機觸控模式的地圖說明（第一行改成觸控按鈕）
+export const VILLAGE_MAP_TIPS_TOUCH = [
+  '左下搖桿移動，「互動」按鈕互動，右上「背包」查看物品，「返回」離開。',
+  ...VILLAGE_MAP_TIPS.slice(1),
+];

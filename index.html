@@ -10,8 +10,69 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="河岸日和" />
     <title>河岸日和</title>
+    <!-- 開場封面：寫在網頁本身，遊戲程式還在下載時就能先顯示（封面原檔：素材/封面.png） -->
+    <link rel="preload" as="image" href="/assets/opt/cover.webp" media="(min-width: 700px)" />
+    <link rel="preload" as="image" href="/assets/opt/cover-sm.webp" media="(max-width: 699px)" />
+    <style>
+      #loading {
+        position: fixed; inset: 0; z-index: 50; overflow: hidden;
+        background: #2b2420; color: #4a3426;
+        font-family: "Noto Sans TC", "Microsoft JhengHei", "PingFang TC", "Heiti TC", sans-serif;
+        transition: opacity 0.6s ease; touch-action: none; user-select: none; -webkit-user-select: none;
+      }
+      #loading.done { opacity: 0; pointer-events: none; }
+      /* 背景：同一張封面放大模糊填滿；前景完整顯示（任何長寬比都看得到標題與角色） */
+      #loading .ld-blur {
+        position: absolute; inset: -40px; width: calc(100% + 80px); height: calc(100% + 80px);
+        object-fit: cover; filter: blur(24px) brightness(0.7);
+      }
+      #loading picture, #loading .ld-art {
+        position: absolute; inset: 0; width: 100%; height: 100%; display: block;
+      }
+      #loading .ld-art { object-fit: contain; }
+      #loading .ld-panel {
+        position: absolute; left: 50%; transform: translateX(-50%);
+        bottom: calc(5vh + env(safe-area-inset-bottom, 0px));
+        width: min(440px, calc(100% - 40px));
+        background: rgba(251, 244, 230, 0.93); border: 3px solid #8a5a3c; border-radius: 16px;
+        padding: 12px 18px 14px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+      }
+      #loading .ld-row { display: flex; justify-content: space-between; align-items: baseline; font-size: 15px; font-weight: 700; margin-bottom: 8px; }
+      #loading .ld-pct { font-variant-numeric: tabular-nums; color: #8a5a3c; }
+      #loading .ld-bar { height: 12px; border-radius: 999px; background: #e6d6b8; overflow: hidden; border: 2px solid #b28a62; }
+      #loading .ld-fill {
+        height: 100%; width: 0%; border-radius: 999px; transition: width 0.2s ease;
+        background: repeating-linear-gradient(-45deg, #f2c45a 0 10px, #e9b445 10px 20px);
+        background-size: 28px 28px; animation: ld-move 0.9s linear infinite;
+      }
+      /* 遊戲程式還在下載（還沒有實際進度）：進度條來回滑動 */
+      #loading.waiting .ld-fill { width: 30%; animation: ld-move 0.9s linear infinite, ld-wait 1.4s ease-in-out infinite alternate; }
+      @keyframes ld-move { to { background-position: 28px 0; } }
+      @keyframes ld-wait { from { transform: translateX(-10%); } to { transform: translateX(245%); } }
+      #loading .ld-dots::after { content: ''; animation: ld-dots 1.2s steps(4) infinite; }
+      @keyframes ld-dots { 0% { content: ''; } 25% { content: '.'; } 50% { content: '..'; } 75% { content: '...'; } }
+      @media (max-height: 430px) {
+        #loading .ld-panel { padding: 8px 14px 10px; bottom: calc(3vh + env(safe-area-inset-bottom, 0px)); width: min(360px, calc(100% - 40px)); }
+        #loading .ld-row { font-size: 13px; margin-bottom: 6px; }
+        #loading .ld-bar { height: 9px; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #loading .ld-fill, #loading.waiting .ld-fill, #loading .ld-dots::after { animation: none; }
+      }
+    </style>
   </head>
   <body>
+    <div id="loading" class="waiting" role="status" aria-live="polite">
+      <img class="ld-blur" src="/assets/opt/cover-sm.webp" alt="" aria-hidden="true" />
+      <picture>
+        <source media="(max-width: 699px)" srcset="/assets/opt/cover-sm.webp" />
+        <img class="ld-art" src="/assets/opt/cover.webp" alt="河岸日和：在小村裡，慢慢過日子" />
+      </picture>
+      <div class="ld-panel">
+        <div class="ld-row"><span class="ld-text">載入中<span class="ld-dots"></span></span><span class="ld-pct"></span></div>
+        <div class="ld-bar"><div class="ld-fill"></div></div>
+      </div>
+    </div>
     <div id="game"></div>
     <div id="ui"></div>
     <script type="module" src="/src/main.js"></script>

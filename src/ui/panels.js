@@ -6,7 +6,8 @@ import { FISH } from '../config/collectibles.js';
 import { CROPS } from '../config/crops.js';
 import { QUESTS } from '../config/quests.js';
 import { ITEMS, itemName } from '../config/items.js';
-import { TEA_LINES, TEA_DRINK_LINES, VILLAGE_MAP_TIPS } from '../config/dialogue.js';
+import { TEA_LINES, TEA_DRINK_LINES, VILLAGE_MAP_TIPS, VILLAGE_MAP_TIPS_TOUCH } from '../config/dialogue.js';
+import { touch } from '../core/touch.js';
 import { MAP } from '../config/map.js';
 import { TEX_SCALE } from '../config/assets.js';
 
@@ -172,7 +173,7 @@ export function openNoticeBoard() {
     body.replaceChildren();
     const help = el('div', 'notice-help');
     help.append(el('h3', 'inv-title', '村民須知'));
-    for (const t of VILLAGE_MAP_TIPS) help.append(el('p', 'hint', t));
+    for (const t of touch.enabled ? VILLAGE_MAP_TIPS_TOUCH : VILLAGE_MAP_TIPS) help.append(el('p', 'hint', t));
     body.append(help, el('h3', 'inv-title', '委託'));
     for (const q of QUESTS) {
       const state = save.data.quests[q.id] || 'available';
@@ -290,7 +291,7 @@ export function openVillageMap(scene, playerPos) {
 // ================= 菜園：選種子 =================
 export function openSeedPicker(onPick) {
   const body = el('div', 'seed-picker');
-  body.append(el('p', 'hint', '選一種種子種下。種下後記得按 E 澆水，作物才會開始成長。'));
+  body.append(el('p', 'hint', `選一種種子種下。種下後記得${touch.pick('按 E 澆水', '按「澆水」')}，作物才會開始成長。`));
   const grid = el('div', 'item-grid');
   for (const c of CROPS) {
     const n = save.count(c.seed);

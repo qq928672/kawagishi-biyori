@@ -1,10 +1,10 @@
 import Phaser from 'phaser';
 import { SPRITES, SHEETS, PLAYER_ANIM, TEX_SCALE, optPath } from '../config/assets.js';
 import { FISH } from '../config/collectibles.js';
-import { FONT } from '../config/gameConfig.js';
 import { downscale, resizeTo, recolor, drawFallback, drawMissing } from '../core/textures.js';
 import { PROP_DRAWERS } from '../world/props.js';
 import { ui } from '../core/ui.js';
+import { loading } from '../core/loading.js';
 
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -12,14 +12,9 @@ export class BootScene extends Phaser.Scene {
   }
 
   preload() {
-    const { width, height } = this.scale;
-    const label = this.add.text(width / 2, height / 2 - 30, '河岸日和', {
-      fontFamily: FONT, fontSize: '36px', color: '#fbf4e6', resolution: 2,
-    }).setOrigin(0.5);
-    const barBg = this.add.rectangle(width / 2, height / 2 + 24, 320, 12, 0x5a463a).setOrigin(0.5);
-    const bar = this.add.rectangle(width / 2 - 160, height / 2 + 24, 0, 12, 0xf6d58c).setOrigin(0, 0.5);
-    this.load.on('progress', (p) => { bar.width = 320 * p; });
-    this.load.once('complete', () => { label.destroy(); barBg.destroy(); bar.destroy(); });
+    // 讀取進度顯示在 index.html 的封面載入畫面（src/core/loading.js）
+    loading.progress(0);
+    this.load.on('progress', (p) => loading.progress(p));
 
     this.failed = new Set();
     // 最佳化 WebP 找不到時，在 create() 以第二輪載入改用原始 PNG
@@ -66,6 +61,7 @@ export class BootScene extends Phaser.Scene {
   }
 
   buildTextures() {
+    loading.preparing();
     const missing = [];
     for (const [key, s] of Object.entries(SPRITES)) {
       if (s.raw) {
@@ -161,6 +157,7 @@ export class BootScene extends Phaser.Scene {
     if (missing.length) ui.toast(`有 ${missing.length} 個素材載入失敗，已用佔位圖代替：${missing.join(', ')}`, 6000);
 
     const preview = new URLSearchParams(window.location.search).get('preview');
+    if (preview === 'walk') loading.hide(); // 小鎮會在畫好第一格後自己關閉載入畫面
     this.scene.start(preview === 'walk' ? 'WalkPreview' : 'Town');
   }
 }
