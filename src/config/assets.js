@@ -5,7 +5,15 @@
 // - height：顯示高度（像素）。載入時以 2 倍高度預先高品質縮放，顯示時縮小一半。
 // - raw：true 表示不做縮放處理，直接當作原尺寸圖片使用（例如全畫面背景）
 // 替換素材：把新 PNG 放進 public/assets/sprites/，修改 file 即可；比例不同時請同步調整 map.js 的碰撞框。
+// 載入最佳化：遊戲實際下載的是 public/assets/opt/<名稱>.webp（已縮到需要的尺寸），PNG 是母檔。
+// 替換或新增 PNG 後，執行 npm run dev，在瀏覽器 console 輸入 await T.optimize() 重新產生 WebP；
+// 若找不到對應的 WebP，遊戲會自動改載入 PNG。
 const S = (name) => `assets/sprites/${name}.png`;
+
+/** 母檔 PNG 路徑 → 最佳化 WebP 的檔名 */
+export const optName = (file) => `${file.split('/').pop().replace(/\.png$/i, '')}.webp`;
+/** 母檔 PNG 路徑 → 遊戲載入用的路徑 */
+export const optPath = (file) => (/\.png$/i.test(file) ? `assets/opt/${optName(file)}` : file);
 
 export const SPRITES = {
   // ---- 建築物.png ----

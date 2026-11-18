@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { SPRITES, SHEETS, PLAYER_ANIM, TEX_SCALE } from '../config/assets.js';
+import { SPRITES, SHEETS, PLAYER_ANIM, TEX_SCALE, optPath } from '../config/assets.js';
 import { FISH } from '../config/collectibles.js';
 import { FONT } from '../config/gameConfig.js';
 import { downscale, resizeTo, recolor, drawFallback, drawMissing } from '../core/textures.js';
@@ -22,16 +22,25 @@ export class BootScene extends Phaser.Scene {
     this.load.once('complete', () => { label.destroy(); barBg.destroy(); bar.destroy(); });
 
     this.failed = new Set();
+    // 最佳化 WebP 找不到時，在 create() 以第二輪載入改用原始 PNG
+    this.pngFallback = new Map();
     this.load.on('loaderror', (file) => {
+      if (this.pngFallback.has(file.key)) return; // create() 會改載入 PNG
       this.failed.add(file.key);
       console.warn('[boot] 素材載入失敗：', file.src);
     });
 
-    // 同一個檔案只載入一次
+    // 同一個檔案只載入一次；PNG 改載入 public/assets/opt/ 的 WebP（已縮到需要的尺寸）
+    // 網址加 ?png=1 可強制載入原始 PNG（比對畫質用）
+    const forcePng = new URLSearchParams(window.location.search).has('png');
     const files = new Map();
     for (const s of Object.values(SPRITES)) if (s.file) files.set(s.file, `raw:${s.file}`);
     for (const s of Object.values(SHEETS)) files.set(s.file, `raw:${s.file}`);
-    for (const [file, key] of files) this.load.image(key, file);
+    for (const [file, key] of files) {
+      const path = forcePng ? file : optPath(file);
+      if (path !== file) this.pngFallback.set(key, file);
+      this.load.image(key, path);
+    }
   }
 
   rawSource(file) {
@@ -41,6 +50,22 @@ export class BootScene extends Phaser.Scene {
   }
 
   create() {
+    // 有 WebP 沒載入成功（缺檔回 404，或開發伺服器回傳網頁而無法解碼）：補載原始 PNG，完成後再建立紋理
+    const list = [...this.pngFallback].filter(([key]) => !this.textures.exists(key));
+    this.pngFallback.clear();
+    if (list.length) {
+      for (const [key, png] of list) {
+        console.warn('[boot] 找不到最佳化素材，改用原圖：', png);
+        this.load.image(key, png);
+      }
+      this.load.once('complete', () => this.buildTextures());
+      this.load.start();
+      return;
+    }
+    this.buildTextures();
+  }
+
+  buildTextures() {
     const missing = [];
     for (const [key, s] of Object.entries(SPRITES)) {
       if (s.raw) {

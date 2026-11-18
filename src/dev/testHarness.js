@@ -83,6 +83,11 @@ const T = {
       this.step(1);
     });
   },
+  // 重新產生最佳化素材（public/assets/opt/*.webp）；替換 public/assets/sprites/ 的 PNG 後執行
+  async optimize() {
+    const { optimizeAssets } = await import('./optimizeAssets.js');
+    return optimizeAssets();
+  },
   unsnap() { const o = document.getElementById('snapimg'); if (o) o.style.display = 'none'; },
 };
 window.T = T;
