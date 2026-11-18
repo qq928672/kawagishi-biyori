@@ -392,15 +392,16 @@ export class MuseumScene extends Phaser.Scene {
 
     if (ex.role) {
       const dl = el('dl', 'exhibit-role');
+      // 沒有資料的欄位不顯示
       const row = (k, v) => {
+        if (!v || (Array.isArray(v) && !v.length)) return;
         dl.append(el('dt', '', k));
         const dd = el('dd');
         if (Array.isArray(v)) {
           const ul = el('ul');
           for (const it of v) ul.append(el('li', '', it));
           dd.append(ul);
-        } else if (v) dd.textContent = v;
-        else dd.append(el('span', 'badge todo', '待補（簡報未提供）'));
+        } else dd.textContent = v;
         dl.append(dd);
       };
       row('背景', ex.role.context);
@@ -432,16 +433,13 @@ export class MuseumScene extends Phaser.Scene {
     if (ex.images?.length) {
       const grid = el('div', 'exhibit-images');
       for (const im of ex.images) {
+        if (!im.src) continue; // 沒有照片的項目不顯示
         const fig = el('figure', 'exhibit-figure');
-        if (im.src) {
-          const img = el('img');
-          img.src = im.src;
-          img.alt = im.caption || ex.title;
-          img.onerror = () => img.replaceWith(el('div', 'photo-placeholder', '圖片載入失敗'));
-          fig.append(img);
-        } else {
-          fig.append(el('div', 'photo-placeholder', '照片待放置'));
-        }
+        const img = el('img');
+        img.src = im.src;
+        img.alt = im.caption || ex.title;
+        img.onerror = () => img.replaceWith(el('div', 'photo-placeholder', '圖片載入失敗'));
+        fig.append(img);
         const cap = [im.caption, im.credit].filter(Boolean).join('　');
         if (cap) fig.append(el('figcaption', '', cap));
         grid.append(fig);
@@ -461,11 +459,6 @@ export class MuseumScene extends Phaser.Scene {
       body.append(links);
     }
 
-    if (ex.todo?.length) {
-      const box = el('div', 'exhibit-todo');
-      box.append(el('span', 'badge todo', '待補'), document.createTextNode(` ${ex.todo.join('、')}`));
-      body.append(box);
-    }
     body.append(el('p', 'hint exhibit-source', '資料來源：承翰_自我介紹簡報'));
 
     ui.openModal({
