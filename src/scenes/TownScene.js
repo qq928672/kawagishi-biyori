@@ -147,7 +147,7 @@ export class TownScene extends Phaser.Scene {
       const music = s.sound && s.volume > 0;
       loading.ready({
         text: touch.pick('點一下畫面或按任意鍵開始', '輕觸畫面開始'),
-        note: music ? '♪ 開始後會播放背景音樂，可在「設定」調整音量' : '目前已關閉音效，可在「設定」開啟',
+        note: music ? '♪ 開始後會播放背景音樂' : '音效已關閉，可在「設定」開啟',
       });
     });
     // 首次進入：歡迎教學（只自動出現一次）；等玩家關掉封面後才出現

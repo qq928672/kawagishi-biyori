@@ -13,10 +13,12 @@ export const loading = {
     const pct = Math.max(0, Math.min(100, Math.round(p * 100)));
     if (pct < shown) return; // 第二輪補載（缺 WebP 改用 PNG）時不讓進度倒退
     shown = pct;
-    el.querySelector('.ld-fill').style.width = `${pct}%`;
+    const panel = el.querySelector('.ld-panel');
+    if (!panel || !el.querySelector('.ld-track')) return; // 已切換成「輕觸開始」
+    panel.style.setProperty('--p', `${pct}%`); // 進度線與浮標的位置
     el.querySelector('.ld-pct').textContent = `${pct}%`;
     const label = el.querySelector('.ld-text');
-    if (label.firstChild?.nodeValue !== text) label.firstChild.nodeValue = text;
+    if (label.textContent !== text) label.textContent = text;
   },
 
   /** 素材都下載完、正在準備畫面 */
