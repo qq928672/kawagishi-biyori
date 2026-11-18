@@ -141,10 +141,17 @@ export class TownScene extends Phaser.Scene {
 
     audio.setAmbience('town');
     cam.fadeIn(500, 0, 0, 0);
-    // 小鎮畫好第一格後，封面載入畫面淡出
-    this.events.once('postupdate', () => loading.hide());
-    // 首次進入：歡迎教學（只自動出現一次）
-    this.time.delayedCall(450, () => this.showWelcome());
+    // 小鎮畫好第一格後，封面改為「輕觸開始」；這一下同時讓背景音樂開始播放
+    this.events.once('postupdate', () => {
+      const s = save.data.settings;
+      const music = s.sound && s.volume > 0;
+      loading.ready({
+        text: touch.pick('點一下畫面或按任意鍵開始', '輕觸畫面開始'),
+        note: music ? '♪ 開始後會播放背景音樂，可在「設定」調整音量' : '目前已關閉音效，可在「設定」開啟',
+      });
+    });
+    // 首次進入：歡迎教學（只自動出現一次）；等玩家關掉封面後才出現
+    loading.onDone(() => this.time.delayedCall(450, () => this.showWelcome()));
   }
 
   showWelcome() {

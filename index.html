@@ -51,13 +51,22 @@
       @keyframes ld-wait { from { transform: translateX(-10%); } to { transform: translateX(245%); } }
       #loading .ld-dots::after { content: ''; animation: ld-dots 1.2s steps(4) infinite; }
       @keyframes ld-dots { 0% { content: ''; } 25% { content: '.'; } 50% { content: '..'; } 75% { content: '...'; } }
+      /* 載入完成：等玩家輕觸開始（同時啟用背景音樂） */
+      #loading.ready { cursor: pointer; }
+      #loading.ready .ld-panel { text-align: center; animation: ld-pulse 1.6s ease-in-out infinite; }
+      #loading .ld-start-text { font-size: 18px; font-weight: 700; letter-spacing: 1px; }
+      #loading .ld-start-note { margin-top: 4px; font-size: 13px; color: #7a6050; }
+      #loading:focus { outline: none; }
+      @keyframes ld-pulse { 50% { transform: translateX(-50%) scale(1.04); } }
       @media (max-height: 430px) {
+        #loading .ld-start-text { font-size: 16px; }
+        #loading .ld-start-note { font-size: 12px; margin-top: 2px; }
         #loading .ld-panel { padding: 8px 14px 10px; bottom: calc(3vh + env(safe-area-inset-bottom, 0px)); width: min(360px, calc(100% - 40px)); }
         #loading .ld-row { font-size: 13px; margin-bottom: 6px; }
         #loading .ld-bar { height: 9px; }
       }
       @media (prefers-reduced-motion: reduce) {
-        #loading .ld-fill, #loading.waiting .ld-fill, #loading .ld-dots::after { animation: none; }
+        #loading .ld-fill, #loading.waiting .ld-fill, #loading .ld-dots::after, #loading.ready .ld-panel { animation: none; }
       }
     </style>
   </head>
