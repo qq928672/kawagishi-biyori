@@ -306,3 +306,6 @@ export async function sliceSheets() {
   console.table(report);
   return report;
 }
+
+// 給第二批素材（sliceStage2.js）共用
+export { loadSheet, extract, scaled, upload };

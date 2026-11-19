@@ -108,19 +108,25 @@ export const SPRITES = {
 
   // ---- 地板素材.png（src/dev/sliceSheets.js 裁切；已是需要的尺寸，不再縮放） ----
   // 草地：400×400 可無縫鋪設的圖塊（已實心化、降低對比）；地面在 world/village.js 烘焙成一張畫布
-  ground_grass_a: { file: 'assets/ground/grass_a.webp', raw: true },
-  ground_grass_b: { file: 'assets/ground/grass_b.webp', raw: true },
-  ground_grass_c: { file: 'assets/ground/grass_c.webp', raw: true },
+  // 細草（素材/草地.png → src/dev/sliceStage2.js；768×768、已轉鼠尾草綠並處理接縫）
+  ground_grass_fine: { file: 'assets/ground/grass_fine.webp', raw: true },
   // 踏石六種（同一縮放倍率，保留相對大小）
   ...Object.fromEntries([1, 2, 3, 4, 5, 6].map((n) => [`ground_stone_${n}`, { file: `assets/ground/stone_${n}.webp`, raw: true }])),
   // 草叢、花、苔蘚（集中放在邊緣、牆角、樹根、入口）
-  ...Object.fromEntries(['tuft_1', 'tuft_2', 'tuft_3', 'daisy', 'flowers', 'moss_1', 'moss_2'].map((n) => [`ground_${n}`, { file: `assets/ground/deco_${n}.webp`, raw: true }])),
+  ...Object.fromEntries(['daisy', 'flowers'].map((n) => [`ground_${n}`, { file: `assets/ground/deco_${n}.webp`, raw: true }])),
+  // 透明草叢（素材/植物素材.png）：取代原本的草叢與苔蘚，位置與數量不變
+  ...Object.fromEntries(['tuft_1', 'tuft_2', 'tuft_3', 'tuft_4', 'strip_1', 'strip_2', 'strip_3', 'strip_4'].map((n) => [`plant_${n}`, { file: `assets/ground/plant_${n}.webp`, raw: true }])),
+
+  // ---- 柵欄.png：圓木柱與雙橫桿（分開鋪設，柱距一致、不會疊出雙柱） ----
+  fence_post: { file: 'assets/props/fence_post.webp', raw: true },
+  fence_rail: { file: 'assets/props/fence_rail.webp', raw: true },
+  // ---- 石階.png：東側四階石階（含上下平台與兩側石牆） ----
+  stairs_east: { file: 'assets/props/stairs_east.webp', raw: true },
 
   // ---- 程式繪製（素材缺口） ----
   bus_stop: { file: S('bus_shelter_tile'), prop: 'bus_stop', height: 150 },
   village_map: { file: S('village_map_notice'), prop: 'village_map', height: 110 },
   tea_table: { prop: 'tea_table', height: 40 },
-  fence: { prop: 'fence', height: 42 },
   bush: { prop: 'bush', height: 56 },
   bush_pink: { prop: 'bush_pink', height: 56 },
   bush_blue: { prop: 'bush_blue', height: 56 },
@@ -140,6 +146,19 @@ export const SHEETS = {
   player: { file: S('player_sheet'), frameWidth: 168, frameHeight: 292, cols: 5, rows: 4, scale: 0.625, footY: 288 },
   // 貓咪.png 12 格：0 正面 1 背面 2 左前 3 右前｜4-7 向右走｜8 睡覺 9 趴坐 10 抬頭坐 11 伸懶腰
   cat: { file: S('cat_sheet'), frameWidth: 344, frameHeight: 326, cols: 4, rows: 3, scale: 0.3, footY: 322 },
+  // 上下樓六格（src/dev/sliceStage2.js 依 player_sheet 的頭寬與上半身位置對齊；與走路格同縮放、同接地基準 y=288）
+  // 畫布 200×330 比走路格 168×292 大，抬腳、下踩不會被裁掉
+  player_stairs_up: { file: 'assets/anim/stairs_up.webp', frameWidth: 200, frameHeight: 330, cols: 6, rows: 1, scale: 0.625, footY: 288 }, // 背面上樓（素材/下坡.png）
+  player_stairs_down: { file: 'assets/anim/stairs_down.webp', frameWidth: 200, frameHeight: 330, cols: 6, rows: 1, scale: 0.625, footY: 288 }, // 正面下樓（素材/上坡.png）
+};
+
+// 上下樓的播放順序（0 起算）與停下時的「雙腳踩穩」格；依實際比對影格差異決定（見交付說明）
+export const STAIR_ANIM = {
+  up: { key: 'player_stairs_up', order: [0, 1, 2, 5, 4], stand: 3 }, // 左腳抬→高抬→踩穩→右腳抬→踩穩（第 4 格與 3、5 相近，只作停下姿勢）
+  down: { key: 'player_stairs_down', order: [0, 1, 2, 4, 5], stand: 4 }, // 第 4 格與第 3 格幾乎相同，不重複播放
+  stepPx: 26, // 每前進 26 世界像素換一格（依實際移動距離推進，不滑步）
+  upSpeed: 0.87, // 上樓比平地慢 13%
+  downSpeed: 0.93, // 下樓比平地慢 7%
 };
 
 export const PLAYER_ANIM = {

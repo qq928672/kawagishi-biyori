@@ -5,6 +5,7 @@ import { ui } from './core/ui.js';
 import { audio } from './core/audio.js';
 import { bus } from './core/store.js';
 import { touch } from './core/touch.js';
+import { home } from './core/home.js';
 import { BootScene } from './scenes/BootScene.js';
 import { TownScene } from './scenes/TownScene.js';
 import { MuseumScene } from './scenes/MuseumScene.js';
@@ -32,6 +33,8 @@ const game = new Phaser.Game({
 });
 
 touch.init(game); // 手機觸控操作（桌面維持鍵盤操作）
+// 首頁封面一開始就在畫面上（index.html）；這裡接上按鈕。遊戲素材同時在背景下載，按下開始後才顯示讀取畫面
+home.show();
 
 if (import.meta.env.DEV) {
   window.__game = game;

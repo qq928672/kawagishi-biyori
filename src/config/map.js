@@ -27,8 +27,8 @@ const H = 1980;
 // ---------------- 三層地形 ----------------
 // edge：該層地面的前緣（牆頂）；face：牆面高度（畫面像素）；牆底 = edge + face = 下一層地面的開始
 export const TIERS = {
-  // drawEnd：直牆畫到這裡，之後接轉角石牆（側面朝東，旁邊就是緩坡）
-  upper: { name: '住宅台地', top: 175, edge: 540, face: 120, wallX: [0, 2300], drawEnd: 2236 },
+  // 上層擋土牆整段畫到東邊界；東側石階（EAST_STAIRS）穿過擋土牆，牆在石階兩側石牆處接上
+  upper: { name: '住宅台地', top: 175, edge: 540, face: 120, wallX: [0, W] },
   middle: { name: '生活區', top: 660, edge: 1170, face: 90, wallX: [0, W] },
   lower: { name: '河岸步道', top: 1260, edge: 1360, face: 65, wallX: [0, W] }, // 下層前緣是河堤石壁（無草頂）
 };
@@ -50,15 +50,32 @@ export const STAIRS = [
   stairs('stairs-a', 560, 1150, 128, 58), // 中層 ↔ 河岸（橋頭旁）
   stairs('stairs-b', 1700, 1150, 128, 58), // 中層 ↔ 河岸
   stairs('stairs-pier', 2232, 1338, 76, 30), // 河岸步道 ↔ 釣魚平台（平台較低；整座石階落在平台頂面上）
-];
+].map((s) => ({ ...s, steps: [s.top, s.top + s.height] }));
 
-// 右側緩坡：上層東端到中層的泥土坡道（沒有擋土牆）
-// 坡道兩側有竹欄杆（posts），坡面由上而下逐漸變暗、並有踩實的橫向階痕
-export const RAMP = {
-  x1: 2300, x2: 2440, top: 470, bottom: 720,
-  // 坡道沿著擋土牆斜切的東端往下，最後鑽到商店街步道底下（步道以平切口收在泥土路上）
-  path: [[2200, 510], [2290, 518], [2352, 556], [2366, 636], [2336, 716], [2290, 790], [2236, 880]],
+// 東側石階路（取代原本像平面道路的泥土彎坡）：
+//   上層道路（直接接到）→ 石階上平台 → 四階直向石階 → 下平台 → 泥土小路 → 商店街
+// 石階圖（石階.png 的四階模組 → props/stairs_east.webp，262×212）只等比縮放，不彎曲、不拉伸。
+// 圖內比例（實測）：上平台 0～19%、石階 19～79%、下平台 80～100%；兩側石牆內緣約 20%／80%，牆身到 88% 高。
+const ES_W = 200;
+const ES_H = Math.round((ES_W * 212) / 262); // 162
+export const EAST_STAIRS = {
+  x: 2340, // 中心
+  top: 498, // 上平台上緣（上層地面：擋土牆前緣 y=540 以北）
+  width: ES_W,
+  height: ES_H, // 底部 660 = 中層地面開始的位置
+  steps: [498 + Math.round(ES_H * 0.19), 498 + Math.round(ES_H * 0.79)], // 有階梯的區段（上下樓動畫用）
+  inner: [2340 - ES_W * 0.28, 2340 + ES_W * 0.28], // 可走的內側寬度（兩側石牆不可走）
+  wallBottom: 498 + Math.round(ES_H * 0.88), // 兩側石牆的下端
 };
+const ES = EAST_STAIRS;
+// 東側樹林邊界（原本緩坡東側的碰撞，位置不變）
+const EAST_BANK = { x: 2440, bottom: 720 };
+// 東側石階：獨立的石階模組（含上下平台與兩側石牆），另外繪製；可走範圍只在兩側石牆之間
+STAIRS.push({
+  id: 'stairs-east', module: 'stairs_east', x: ES.x, top: ES.top, height: ES.height, width: ES.width, steps: ES.steps,
+  // 下端延伸到擋土牆碰撞的下緣（y=670）以下，下平台才能接到中層地面
+  walk: { x: ES.inner[0], y: ES.top - 8, w: ES.inner[1] - ES.inner[0], h: ES.height + 22 },
+});
 
 // 南北向木橋：上端接河岸步道，下端接對岸
 // bridge_ns 原圖 772×1263；橋面左右緣（原圖座標）：上端 x 232~520（y 90），下端 x 122~650（y 1150）
@@ -136,8 +153,9 @@ const ROADS = {
     { type: 'rect', x: 0, y: L.top + 2, w: W, h: L.edge - L.top - 2 }, // 河岸步道
   ],
   dirt: [
-    { type: 'seg', pts: [[700, 502], [1560, 505], [2240, 512]], w: 70 }, // 上層小路（中央石階 → 農舍、菜園）；西側民宅庭院改為草地＋踏石
-    { type: 'seg', pts: RAMP.path, w: 84 }, // 緩坡
+    // 上層小路（中央石階 → 農舍、菜園 → 東側石階上平台）；西側民宅庭院改為草地＋踏石
+    { type: 'seg', pts: [[700, 502], [1560, 505], [2240, 512], [2300, 500], [2340, 496]], w: 70 },
+    { type: 'seg', pts: [[ES.x, ES.top + ES.height - 6], [2330, 720], [2300, 790], [2262, 846]], w: 70 }, // 東側石階下平台 → 商店街（中層平地）
     { type: 'seg', pts: [[1250, 505], [1250, 470]], w: 70 }, // 農舍門口
     { type: 'seg', pts: [[1845, 505], [1845, 250]], w: 52 }, // 菜園中間
     { type: 'seg', pts: [[BRIDGE.x, BRIDGE.top + BRIDGE.height - 8], [360, 1778], [520, 1810], [1000, 1810], [1500, 1760], [2000, 1820], [W, 1820]], w: 64 }, // 對岸小徑
@@ -216,7 +234,7 @@ const FOREST = [
 
 // 擋土牆沿線的木柵欄（石階、橋頭、碼頭、平台石階處留缺口）
 export const FENCES = [
-  { y: U.edge + 4, x1: 0, x2: U.drawEnd, gaps: [[600, 840]], spacing: 88 },
+  { y: U.edge + 4, x1: 0, x2: 2236, gaps: [[600, 840]], spacing: 88 }, // 範圍與原本相同（不延伸新增）
   { y: M.edge + 2, x1: 0, x2: W, gaps: [[480, 640], [1620, 1780]], spacing: 88 },
   { y: L.edge + 4, x1: 0, x2: W, gaps: [[200, 400], [2186, 2280]], spacing: 88 },
 ];
@@ -239,7 +257,7 @@ export const MAP = {
   farTop: FAR_TOP,
   bridge: BRIDGE,
   stairs: STAIRS,
-  ramp: RAMP,
+  eastStairs: EAST_STAIRS,
   platform: PLATFORM,
   roads: ROADS,
   stepPaths: STEP_PATHS,
@@ -249,10 +267,8 @@ export const MAP = {
 
   // 地形碰撞（可被 walkAreas 覆蓋）
   blockers: [
-    { id: 'wall-upper', x: U.wallX[0], y: U.edge - 12, w: U.drawEnd - U.wallX[0], h: U.face + 22 },
-    // 斜切收尾段：牆面越往東越矮，碰撞也跟著變短
-    { id: 'wall-upper-taper-1', x: U.drawEnd, y: U.edge - 12, w: 32, h: U.face + 2 },
-    { id: 'wall-upper-taper-2', x: U.drawEnd + 32, y: U.edge - 12, w: U.wallX[1] - U.drawEnd - 32, h: U.face - 50 },
+    // 上層擋土牆（整段）：只能經由中央石階或東側石階的可走範圍（walkAreas）跨層
+    { id: 'wall-upper', x: U.wallX[0], y: U.edge - 12, w: U.wallX[1] - U.wallX[0], h: U.face + 22 },
     { id: 'wall-middle', x: 0, y: M.edge - 8, w: W, h: M.face + 12 },
     { id: 'embankment', x: 0, y: L.edge - 4, w: W, h: L.face + 4 },
     { id: 'river', ...RIVER },
@@ -260,18 +276,21 @@ export const MAP = {
     { id: 'edge-left', x: 0, y: 0, w: 30, h: H },
     { id: 'edge-right', x: W - 30, y: 0, w: 30, h: H },
     { id: 'far-bank-bottom', x: 0, y: H - 50, w: W, h: 50 },
-    { id: 'ramp-bank-east', x: RAMP.x2, y: U.top, w: W - RAMP.x2, h: RAMP.bottom - U.top + 40 }, // 緩坡東側樹林
+    { id: 'ramp-bank-east', x: EAST_BANK.x, y: U.top, w: W - EAST_BANK.x, h: EAST_BANK.bottom - U.top + 40 }, // 東側樹林（位置不變）
   ],
 
   walkAreas: [
     ...STAIRS.map((s) => ({ id: s.id, ...s.walk })),
-    { id: 'ramp', x: RAMP.x1, y: RAMP.top, w: RAMP.x2 - RAMP.x1, h: RAMP.bottom - RAMP.top },
     ...bridgeDeckRects(BRIDGE),
     { id: 'platform', ...PLATFORM.walk },
   ],
 
-  // 永遠阻擋的實體：橋的欄杆與柱子（依橋的輪廓自動產生）
-  solids: bridgeRailSolids(BRIDGE),
+  // 永遠阻擋的實體：橋的欄杆與柱子（依橋的輪廓自動產生）；東側石階兩側石牆（不能從階梯側邊滑出）
+  solids: [
+    ...bridgeRailSolids(BRIDGE),
+    { id: 'stairs-east-wall-l', x: ES.x - ES.width / 2, y: ES.top, w: ES.inner[0] - (ES.x - ES.width / 2), h: ES.wallBottom - ES.top },
+    { id: 'stairs-east-wall-r', x: ES.inner[1], y: ES.top, w: ES.x + ES.width / 2 - ES.inner[1], h: ES.wallBottom - ES.top },
+  ],
 
   objects: [
     // ================= 上層：住宅台地 =================
@@ -279,7 +298,6 @@ export const MAP = {
     deco('flower_pots', 600, 488),
     deco('laundry', 130, 470),
     building('bld_farm', 1250, 470, 240, 110),
-    deco('firewood', 1540, 470),
     ...gardenFence(),
     tree(870, 380, 'tree_old'), tree(2150, 380, 'tree_round', true),
 
@@ -370,7 +388,7 @@ export const MAP = {
     ['河岸橋頭站', BUS_STOP.x, BUS_STOP.y],
     ['承翰故事館', 330, 760], ['雜貨店', 1330, 720], ['茶屋', 1880, 720], ['菜園', 1850, 360],
     ['農舍', 1250, 330], ['民宅', 380, 330], ['大樹廣場', 990, 1000], ['河岸步道', 1500, 1310],
-    ['釣魚平台', 2300, 1450], ['對岸釣點', 1500, 1760], ['木橋', 300, 1520], ['緩坡', 2370, 620],
+    ['釣魚平台', 2300, 1450], ['對岸釣點', 1500, 1760], ['木橋', 300, 1520], ['東側石階', 2340, 580],
   ],
 
   // 三花貓活動範圍：在草地或步道邊左右散步，不擋入口與石階

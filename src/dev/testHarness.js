@@ -93,6 +93,11 @@ const T = {
     const { sliceSheets } = await import('./sliceSheets.js');
     return sliceSheets();
   },
+  // 第二批：上下樓動畫、細草、植物、柵欄、石階（src/dev/sliceStage2.js）
+  async slice2() {
+    const { sliceStage2 } = await import('./sliceStage2.js');
+    return sliceStage2();
+  },
   unsnap() { const o = document.getElementById('snapimg'); if (o) o.style.display = 'none'; },
 };
 window.T = T;

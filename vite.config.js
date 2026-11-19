@@ -16,7 +16,7 @@ function screenshotSaver() {
         const url = new URL(req.url, 'http://x');
         const name = url.searchParams.get('name') || '';
         const sub = url.searchParams.get('dir') || 'opt';
-        if (!/^[\w-]+\.(webp|png)$/.test(name) || !['opt', 'ground', 'ui', 'cover'].includes(sub)) { res.statusCode = 400; return res.end('bad name'); }
+        if (!/^[\w-]+\.(webp|png)$/.test(name) || !['opt', 'ground', 'ui', 'cover', 'props', 'anim'].includes(sub)) { res.statusCode = 400; return res.end('bad name'); }
         const chunks = [];
         req.on('data', (c) => chunks.push(c));
         req.on('end', () => {

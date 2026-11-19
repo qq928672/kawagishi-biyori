@@ -10,14 +10,16 @@
 import { save } from './save.js';
 import { store, bus } from './store.js';
 import { ui } from './ui.js';
+import { loading } from './loading.js';
 
 const el = () => document.getElementById('home');
 let town = null;
+let resolveReady;
+const ready = new Promise((r) => { resolveReady = r; }); // 素材下載、紋理、村莊都完成（第一格畫好）
 let started = false;
 let bound = false;
 let busy = false; // 防止連點重複開始
 
-export const COVER_URL = () => (window.matchMedia('(max-width: 699px)').matches ? 'assets/cover/home-sm.webp' : 'assets/cover/home.webp');
 
 function refreshButtons() {
   const has = save.hasSave();
@@ -75,9 +77,14 @@ export const home = {
     return !el().classList.contains('hidden');
   },
 
-  /** 小鎮建立完成（已暫停）後由 TownScene 呼叫 */
+  /** 小鎮建立完成（已暫停）後由 BootScene 呼叫 */
   attachTown(scene) {
     town = scene;
+  },
+
+  /** 小鎮畫好第一格：所有素材與初始化都完成 */
+  townReady() {
+    resolveReady();
   },
 
   show() {
@@ -87,13 +94,11 @@ export const home = {
       root.addEventListener('click', onClick);
       bus.on('go-home', () => this.returnHome());
     }
-    const art = root.querySelector('.hm-art');
-    if (!art.getAttribute('src')) art.src = COVER_URL();
     refreshButtons();
     store.mode = 'home';
     root.classList.remove('hidden');
     root.setAttribute('aria-hidden', 'false');
-    requestAnimationFrame(() => root.classList.add('show'));
+    setTimeout(() => root.classList.add('show'), 30); // 下一輪再加上 show，淡入動畫才會生效（不依賴 rAF，背景分頁也能顯示）
     busy = false;
     root.querySelector('[data-act="start"]').focus({ preventScroll: true });
   },
@@ -107,12 +112,21 @@ export const home = {
     }, 700);
   },
 
-  /** 開始／繼續散步 */
-  start() {
-    if (busy || !town) return;
+  /**
+   * 開始／繼續散步
+   * - 第一次：封面收起 → 顯示讀取畫面（接著背景下載的實際進度）→ 素材與村莊都準備好 → 補到 100% → 進入遊戲
+   * - 之後（從遊戲回到首頁再繼續）：素材已載入，直接回到遊戲
+   */
+  async start() {
+    if (busy) return;
     busy = true;
-    this.hide();
     const first = !started;
+    this.hide();
+    if (first) {
+      loading.open();
+      await ready;
+      await loading.complete();
+    }
     started = true;
     store.mode = 'explore';
     town.scene.resume();

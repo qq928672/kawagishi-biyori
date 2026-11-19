@@ -5,7 +5,8 @@ import { downscale, resizeTo, recolor, drawFallback, drawMissing } from '../core
 import { PROP_DRAWERS } from '../world/props.js';
 import { ui } from '../core/ui.js';
 import { loading } from '../core/loading.js';
-import { home, COVER_URL } from '../core/home.js';
+import { home } from '../core/home.js';
+import { store } from '../core/store.js';
 
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -43,8 +44,6 @@ export class BootScene extends Phaser.Scene {
       this.urls.set(key, path);
       this.load.image(key, failTest && key.includes('stone_1') ? 'assets/ground/__missing__.webp' : path);
     }
-    // 首頁封面也算在進度裡（下載後瀏覽器會快取，首頁的 <img> 直接使用；紋理用完即移除）
-    this.load.image('cover:home', COVER_URL());
   }
 
   /**
@@ -221,26 +220,22 @@ export class BootScene extends Phaser.Scene {
     ui.setTextureResolver((key) => (this.textures.exists(key) ? this.textures.getBase64(key) : null));
     if (missing.length) ui.toast(`有 ${missing.length} 個素材載入失敗，已用佔位圖代替：${missing.join(', ')}`, 6000);
 
-    // 封面已在瀏覽器快取中，首頁 <img> 直接使用；不需要留著 GPU 紋理
-    if (this.textures.exists('cover:home')) this.textures.remove('cover:home');
-
     const preview = new URLSearchParams(window.location.search).get('preview');
     if (preview === 'walk') {
       loading.complete();
       this.scene.start('WalkPreview');
       return;
     }
-    // 建立村莊（地面烘焙、物件、碰撞）。建好後立刻暫停：讀取與首頁期間不能操作地圖
+    // 建立村莊（地面烘焙、物件、碰撞）。建好後立刻暫停：首頁與讀取期間不能操作地圖
     loading.set(0.92);
     const town = this.scene.get('Town');
     town.events.once(Phaser.Scenes.Events.CREATE, () => {
       town.scene.pause();
+      store.mode = 'home'; // 還在首頁（TownScene.create 會先設成 explore）
       home.attachTown(town);
       loading.set(0.97);
-      // 暫停中的場景仍會繪製；等村莊畫好第一格，讀取才算完成
-      this.game.events.once(Phaser.Core.Events.POST_RENDER, () => {
-        loading.complete().then(() => home.show());
-      });
+      // 暫停中的場景仍會繪製；等村莊畫好第一格，讀取才算完成（玩家按下開始後讀取畫面才補到 100%）
+      this.game.events.once(Phaser.Core.Events.POST_RENDER, () => home.townReady());
     });
     this.scene.start('Town');
   }

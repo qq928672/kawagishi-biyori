@@ -11,15 +11,14 @@
     <meta name="apple-mobile-web-app-title" content="河岸日和" />
     <title>河岸日和</title>
     <!--
-      開場流程：讀取畫面（本頁，網頁一打開就顯示）→ 首頁封面（本頁 #home）→ 小鎮。
-      - 讀取畫面的拆件素材很小（public/assets/ui/ld_*.webp），沒載入時以 CSS 底色代替，不會擋住讀取流程。
-      - 進度由 src/scenes/BootScene.js 依實際下載量更新（src/core/loading.js）。
+      開場流程：首頁封面（本頁 #home，網頁一打開就顯示）→ 按「開始／繼續散步」→ 讀取畫面（#loading）→ 小鎮。
+      - 封面顯示期間，遊戲素材已在背景下載；按下開始後讀取畫面接著顯示實際進度，完成才進入遊戲。
+      - 進度由 src/scenes/BootScene.js 依實際下載量更新（src/core/loading.js）；流程在 src/core/home.js。
       - 首頁封面 public/assets/cover/home*.webp（原檔：素材/新封面.png），標題與按鈕以 HTML／CSS 呈現。
       素材由 src/dev/sliceSheets.js 從素材板裁切產生。
     -->
-    <link rel="preload" as="image" href="/assets/ui/ld_frame.webp" />
-    <link rel="preload" as="image" href="/assets/ui/ld_water.webp" />
-    <link rel="preload" as="image" href="/assets/ui/ld_cat.webp" />
+    <link rel="preload" as="image" href="/assets/cover/home.webp" media="(min-width: 700px)" />
+    <link rel="preload" as="image" href="/assets/cover/home-sm.webp" media="(max-width: 699px)" />
     <!-- 標題字型：思源宋體（Noto Serif TC）。text= 只下載畫面上用到的字（數十 KB）；離線時改用系統的宋體／明體 -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -47,6 +46,10 @@
         transition: opacity 0.6s ease; touch-action: none; user-select: none; -webkit-user-select: none;
       }
       #loading.done { opacity: 0; pointer-events: none; }
+      /* 還沒按「開始」之前不顯示（進度仍在背景計算） */
+      #loading.idle { display: none; }
+      #loading.enter { animation: ld-in 0.35s ease both; }
+      @keyframes ld-in { from { opacity: 0; } }
       #loading .ld-col {
         position: relative; width: min(600px, 84vw);
         display: flex; flex-direction: column; align-items: center;
@@ -165,7 +168,7 @@
     </style>
   </head>
   <body>
-    <div id="loading" role="status" aria-live="polite">
+    <div id="loading" class="idle" role="status" aria-live="polite">
       <img class="ld-plants" src="/assets/ui/ld_plants.webp" alt="" aria-hidden="true" />
       <div class="ld-col">
         <img class="ld-branch" src="/assets/ui/ld_branch.webp" alt="" aria-hidden="true" />
@@ -183,9 +186,12 @@
     </div>
     <div id="game"></div>
     <div id="ui">
-      <div id="home" class="hidden" aria-hidden="true">
+      <div id="home" class="show">
         <div class="hm-stage">
-          <img class="hm-art" alt="" />
+          <picture>
+            <source media="(max-width: 699px)" srcset="/assets/cover/home-sm.webp" />
+            <img class="hm-art" src="/assets/cover/home.webp" alt="" />
+          </picture>
           <div class="hm-title">
             <h1>河岸日和</h1>
             <p>在小村裡，慢慢過日子</p>

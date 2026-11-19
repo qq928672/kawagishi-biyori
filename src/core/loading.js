@@ -7,6 +7,14 @@
 // - error()：關鍵素材下載失敗時顯示簡短訊息與「重試」。
 const $ = (sel) => document.querySelector(`#loading ${sel}`);
 
+// 下一格：requestAnimationFrame 與 100ms 計時器取先到者（分頁在背景時瀏覽器會停掉 rAF，讀取仍能完成）
+function nextFrame(fn) {
+  let done = false;
+  const run = () => { if (!done) { done = true; fn(); } };
+  requestAnimationFrame(run);
+  setTimeout(run, 100);
+}
+
 let target = 0;
 let shown = 0;
 let finished = false;
@@ -27,12 +35,14 @@ function render() {
     const node = $('.ld-pct');
     if (node) node.textContent = `${pct}%`;
   }
-  if (shown < goal || (finished && shown < 1)) raf = requestAnimationFrame(render);
+  if (shown < goal || (finished && shown < 1)) nextFrame(render);
   else raf = 0;
 }
 
 function kick() {
-  if (!raf) raf = requestAnimationFrame(render);
+  if (raf) return;
+  raf = 1;
+  nextFrame(render);
 }
 
 export const loading = {
@@ -48,6 +58,16 @@ export const loading = {
     return target;
   },
 
+  /** 按下「開始」後顯示讀取畫面（之前一直在背景計算進度，顯示時接著目前的實際進度） */
+  open() {
+    const el = document.getElementById('loading');
+    if (!el || !el.classList.contains('idle')) return;
+    el.classList.remove('idle');
+    el.classList.add('enter');
+    lastPct = -1;
+    render();
+  },
+
   /** 全部完成：補到 100% 後淡出；回傳淡出完成的 Promise */
   complete() {
     finished = true;
@@ -56,7 +76,7 @@ export const loading = {
     return new Promise((resolve) => {
       const wait = () => {
         if (shown < 1) {
-          requestAnimationFrame(wait);
+          nextFrame(wait);
           return;
         }
         const el = document.getElementById('loading');

@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { MAP, FISHING_SPOTS, GARDEN as GARDEN_BOX } from '../config/map.js';
 import { createNight } from '../world/night.js';
 import { PLAYER, CAMERA, FONT } from '../config/gameConfig.js';
-import { SHEETS, TEX_SCALE } from '../config/assets.js';
+import { SHEETS, TEX_SCALE, STAIR_ANIM } from '../config/assets.js';
 import { save } from '../core/save.js';
 import { store, bus } from '../core/store.js';
 import { ui } from '../core/ui.js';
@@ -240,7 +240,9 @@ export class TownScene extends Phaser.Scene {
     const canMove = store.mode === 'explore' && !ui.isModalOpen() && !this.sitting;
     let moving = false;
     if (canMove) moving = this.handleMovement(Math.min(delta, 50) / 1000);
-    this.setWalking(moving);
+    else this.lastMove = { dx: 0, dy: 0, d: 0 };
+    // 在石階上直向移動：上樓／下樓動畫；其他時候用原本的四方向走路
+    if (!this.updateStairsPose(moving)) this.setWalking(moving);
     this.syncPlayerSprite();
     this.cat.update(Math.min(delta, 50), this.cameras.main.worldView);
     this.updateLamps();
@@ -268,12 +270,19 @@ export class TownScene extends Phaser.Scene {
         speedScale = Math.min(1, 0.4 + t.mag * 0.85);
       }
     }
-    if (!vx && !vy) return false;
+    if (!vx && !vy) {
+      this.lastMove = { dx: 0, dy: 0, d: 0 };
+      return false;
+    }
     const len = Math.hypot(vx, vy);
     vx /= len;
     vy /= len;
+    // 石階上：上樓比平地慢 13%、下樓慢 7%
+    if (vy && this.stairsAt(this.feet.x, this.feet.y)) speedScale *= vy < 0 ? STAIR_ANIM.upSpeed : STAIR_ANIM.downSpeed;
     const step = PLAYER.speed * dt * speedScale;
     const f = this.feet;
+    const ox = f.x;
+    const oy = f.y;
     const nx = f.x + vx * step;
     if (!isBoxBlocked(this.colliders, nx, f.y, PLAYER.hitbox)) f.x = nx;
     const ny = f.y + vy * step;
@@ -287,7 +296,65 @@ export class TownScene extends Phaser.Scene {
     if (vy < 0) dirs.push('up');
     if (vy > 0) dirs.push('down');
     if (!dirs.includes(this.facing)) this.setFacing(dirs[0]);
+    // 實際位移：撞牆時不前進，就不播放走路（也不推進上下樓影格）
+    const dx = f.x - ox;
+    const dy = f.y - oy;
+    this.lastMove = { dx, dy, d: Math.hypot(dx, dy), vy };
+    return this.lastMove.d > 0.05;
+  }
+
+  /** 腳底是否在某座石階的「階梯區段」上（不含上下平台；平台用一般走路） */
+  stairsAt(x, y) {
+    for (const s of MAP.stairs) {
+      const [y1, y2] = s.steps;
+      if (y >= y1 && y <= y2 && x >= s.walk.x && x <= s.walk.x + s.walk.w) return s;
+    }
+    return null;
+  }
+
+  /**
+   * 上下樓動畫（回傳 true 表示這一格由石階動畫處理）
+   * - 在階梯區段且以直向移動：往上用背面上樓、往下用正面下樓；中途反向直接切換（步數不重設）
+   * - 影格依實際移動距離推進（每 STAIR_ANIM.stepPx 換一格），不滑步；沒有位移就停在雙腳踩穩的那一格
+   * - 離開階梯區段、或在階梯上只左右移動：回到原本的四方向走路
+   * - 不加額外高度：地圖的 y 已經表示高低（往上走就是往畫面上方移動），不會浮空或跳層
+   */
+  updateStairsPose(moving) {
+    const m = this.lastMove || { dx: 0, dy: 0, d: 0 };
+    const onStairs = !this.sitting && this.stairsAt(this.feet.x, this.feet.y);
+    const vertical = moving && Math.abs(m.dy) >= Math.abs(m.dx) * 0.5;
+    if (!onStairs || (moving && !vertical)) {
+      if (this.stairMode) this.setStairMode(null);
+      return false;
+    }
+    if (moving) this.setStairMode(m.dy < 0 ? 'up' : 'down');
+    else if (!this.stairMode) this.setStairMode(this.facing === 'down' ? 'down' : 'up');
+    const A = STAIR_ANIM[this.stairMode];
+    if (moving) {
+      this.stairDist = (this.stairDist || 0) + m.d;
+      this.player.setFrame(A.order[Math.floor(this.stairDist / STAIR_ANIM.stepPx) % A.order.length]);
+    } else {
+      this.player.setFrame(A.stand);
+    }
     return true;
+  }
+
+  /** 切換上樓／下樓／一般角色表；兩組圖的接地基準相同（y=288），切換時腳底位置不變 */
+  setStairMode(dir) {
+    if (dir === (this.stairMode || null)) return;
+    const was = this.stairMode;
+    this.stairMode = dir;
+    if (dir) {
+      const A = STAIR_ANIM[dir];
+      const sheet = SHEETS[A.key];
+      this.player.anims.stop();
+      this.walking = false;
+      for (const s of [this.player, this.silhouette]) s.setTexture(A.key, A.stand).setOrigin(0.5, sheet.footY / sheet.frameHeight);
+      this.facing = dir === 'up' ? 'up' : 'down';
+    } else if (was) {
+      for (const s of [this.player, this.silhouette]) s.setTexture('player', idleFrame(this.facing)).setOrigin(0.5, SHEETS.player.footY / SHEETS.player.frameHeight);
+      this.walking = false; // 讓 setWalking 依目前狀態重新播放
+    }
   }
 
   /** 轉角輔助：直走被擋住時，若旁邊 24px 內有空隙（石階、門口、橋頭），自動往空隙方向微調 */
@@ -312,6 +379,7 @@ export class TownScene extends Phaser.Scene {
 
   setFacing(dir) {
     this.facing = dir;
+    if (this.stairMode) return; // 石階上由 updateStairsPose 控制影格
     if (this.walking) this.player.anims.play(`walk-${dir}`, true);
     else this.player.anims.stop().setFrame(idleFrame(dir));
   }
@@ -327,6 +395,8 @@ export class TownScene extends Phaser.Scene {
     this.player.setPosition(this.feet.x, this.feet.y);
     this.player.setDepth(this.feet.y + (this.sitting ? 8 : 0));
     this.footShadow.setPosition(this.feet.x + 2, this.feet.y - 1).setDepth(this.player.depth - 0.5).setVisible(!this.sitting);
+    // 遮擋輪廓跟著角色同一張圖、同一格（含上下樓動畫）
+    if (this.silhouette.texture.key !== this.player.texture.key) this.silhouette.setTexture(this.player.texture.key);
     this.silhouette.setPosition(this.player.x, this.player.y).setFrame(this.player.frame.name);
   }
 
@@ -599,6 +669,7 @@ export class TownScene extends Phaser.Scene {
 
   onProgressReset() {
     if (this.sitting) this.standUp();
+    this.setStairMode(null);
     const s = MAP.spawn;
     this.feet.x = s.x;
     this.feet.y = s.y;
