@@ -17,7 +17,7 @@ export const optPath = (file) => (/\.png$/i.test(file) ? `assets/opt/${optName(f
 
 export const SPRITES = {
   // ---- 建築物.png ----
-  bld_store: { file: S('bld_store'), height: 300 }, // 鄉村雜貨店
+  bld_store: { file: S('bld_store_seat'), height: 300 }, // 鄉村雜貨店
   bld_engawa: { file: S('bld_engawa'), height: 290 }, // 緣側民宅
   bld_tea: { file: S('bld_tea'), height: 290 }, // 茶屋
   bld_farm: { file: S('bld_farm'), height: 260 }, // 農舍（附柴房）

@@ -409,6 +409,17 @@ export function buildVillage(scene, map) {
   // ---- 東側石階：石階模組（上平台＋四階＋下平台＋兩側石牆）；上層小路直接接到上平台 ----
   {
     const mod = tex('stairs_east');
+    const foot = ES.top + ES.height;
+    // 下平台接到泥路，兩側在前幾步內平順收窄。
+    ctx.fillStyle = dirt;
+    ctx.beginPath();
+    ctx.moveTo(ES.x - 57, foot - 4);
+    ctx.lineTo(ES.x + 57, foot - 4);
+    ctx.quadraticCurveTo(ES.x + 38, foot + 12, ES.x + 29, foot + 46);
+    ctx.lineTo(ES.x - 43, foot + 46);
+    ctx.quadraticCurveTo(ES.x - 42, foot + 12, ES.x - 57, foot - 4);
+    ctx.closePath();
+    ctx.fill();
     ctx.fillStyle = 'rgba(40,40,20,0.24)';
     ctx.beginPath(); ctx.ellipse(ES.x + 4, ES.top + ES.height - 3, ES.width / 2 + 6, 9, 0, 0, Math.PI * 2); ctx.fill();
     // 兩側石牆貼著擋土牆：牆腳投影延伸到石階邊
@@ -552,7 +563,7 @@ export function buildVillage(scene, map) {
   const glows = [];
   const occluders = [];
   for (const o of map.objects) {
-    const img = scene.add.image(o.x, o.y, o.texture).setOrigin(o.origin[0], o.origin[1]).setScale(1 / TEX_SCALE);
+    const img = scene.add.image(o.x, o.y, o.texture).setOrigin(o.origin[0], o.origin[1]).setScale((o.scaleX ?? 1) / TEX_SCALE, 1 / TEX_SCALE);
     if (o.flipX) img.setFlipX(true);
     img.setDepth(o.depth ?? o.y);
     sprites.set(o.id, img);

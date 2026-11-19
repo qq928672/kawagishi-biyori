@@ -153,7 +153,7 @@ const ROADS = {
   ],
   dirt: [
     // 上層小路（中央石階 → 農舍、菜園 → 東側石階上平台）；西側民宅庭院改為草地＋踏石
-    { type: 'seg', pts: [[700, 502], [1560, 505], [2240, 512], [2300, 500], [2340, 496]], w: 70 },
+    { type: 'seg', pts: [[700, 502], [1560, 505], [2055, 507], [2140, 500], [2210, 480], [2265, 456], [2300, 454], [2321, 463], [2334, 480], [ES.x, ES.top + 12]], w: 70, cap: 'butt' },
     { type: 'seg', pts: [[ES.x, ES.top + ES.height - 6], [2330, 720], [2300, 790], [2262, 846]], w: 70 }, // 東側石階下平台 → 商店街（中層平地）
     { type: 'seg', pts: [[1250, 505], [1250, 470]], w: 70 }, // 農舍門口
     { type: 'seg', pts: [[1845, 505], [1845, 250]], w: 52 }, // 菜園中間
@@ -170,7 +170,7 @@ const STEP_PATHS = [
   // 故事館門階 → 村口，沿草地往左下繞開地圖看板
   { pts: [[330, 895], [324, 934], [277, 947], [227, 956], [176, 992], [156, 1030], [160, 1070]], spacing: 46 },
   // 門前小徑 → 商店街西端
-  { pts: [[366, 928], [401, 951]], spacing: 42 },
+  { pts: [[365, 924], [355, 962]], spacing: 42 },
   // 商店街 → 茶屋旁的長椅（繞過長椅左側，停在椅子前方）
   { pts: [[1818, 984], [1804, 1022], [1822, 1058], [1862, 1068]], spacing: 44 },
 ];
@@ -207,16 +207,24 @@ export const GARDEN = { x1: 1640, x2: 2060, y1: 196, y2: 462, gate: [1810, 1880]
 const gardenFence = () => {
   const G = GARDEN;
   const out = [];
-  for (let x = G.x1; x < G.x2 - 20; x += 100) out.push({ texture: 'fence_bamboo', x: x + 52, y: G.y1, origin: [0.5, 1], noShadow: true });
-  for (let x = G.x1; x < G.x2 - 20; x += 100) {
-    if (x + 100 > G.gate[0] && x < G.gate[1]) continue;
-    out.push({ texture: 'fence_bamboo', x: x + 52, y: G.y2, origin: [0.5, 1] });
-  }
+  const addRail = (left, right, y, noShadow = false) => {
+    // 素材兩端柱心相距約 88px，以柱心相接避免橫桿斷開。
+    const count = Math.round((right - left) / 88);
+    const span = (right - left) / count;
+    for (let i = 0; i < count; i++) {
+      out.push({
+        texture: 'fence_bamboo', x: left + span * (i + 0.5), y,
+        origin: [0.5, 1], scaleX: span / 88, noShadow,
+      });
+    }
+  };
+  addRail(G.x1, G.x2, G.y1, true);
+  addRail(G.x1, G.gate[0], G.y2);
+  addRail(G.gate[1], G.x2, G.y2);
   for (let y = G.y1 + 40; y <= G.y2; y += 42) {
     out.push({ texture: 'fence_post', x: G.x1, y, origin: [0.5, 1] });
     out.push({ texture: 'fence_post', x: G.x2, y, origin: [0.5, 1] });
   }
-  out.push({ texture: 'garden_gate', x: G.gate[0] - 8, y: G.y2 + 2, origin: [0.5, 1], flipX: true });
   return out;
 };
 
@@ -229,7 +237,7 @@ export const GARDEN_PLOTS = [
 const FOREST = [
   [40, 160], [160, 130], [560, 150], [640, 110], [980, 140], [1500, 130], [1580, 170],
   [2150, 150], [2300, 120], [2420, 170], [2520, 150], [2510, 380], [2500, 600], [2520, 760],
-  [40, 360], [30, 640], [2520, 1080],
+  [40, 360], [2520, 1080],
   [120, 1960], [700, 1965], [1150, 1975], [2000, 1965], [2480, 1960],
 ].map(([x, y], i) => tree(x, y, i % 3 === 1 ? 'tree_old' : 'tree_round', i % 2 === 0));
 
@@ -317,8 +325,8 @@ export const MAP = {
     prop('bicycle', 2190, 915, { x: -38, y: -12, w: 76, h: 12 }, { shadow: { w: 88, h: 12 } }),
     // 大樹廣場
     { ...tree(990, 960, 'tree_plaza'), collider: { x: -90, y: -26, w: 180, h: 50 }, planter: { rx: 100, ry: 44 } },
-    lamp(640, 980), lamp(1150, 880), lamp(1760, 905), lamp(2140, 1000),
-    tree(130, 800, 'tree_old'), tree(2300, 1080, 'tree_round', true), tree(1420, 1120, 'tree_old', true),
+    lamp(640, 980), lamp(1172, 986), lamp(1760, 905), lamp(2140, 1000),
+    tree(2300, 1080, 'tree_round', true), tree(1420, 1120, 'tree_old', true),
 
     // ================= 下層：河岸步道 =================
     lamp(470, 1356), lamp(1000, 1356), lamp(1480, 1356), lamp(1900, 1356), lamp(2440, 1356),
@@ -347,6 +355,7 @@ export const MAP = {
     { id: 'map', label: '看村莊地圖', action: 'map', x: 260, y: 1142, radius: 52 },
     { id: 'store', label: '逛雜貨店', action: 'shop', x: 1330, y: 896, radius: 62 },
     { id: 'claw', label: '玩夾娃娃機', action: 'claw', x: 1586, y: 889, radius: 46 },
+    { id: 'store-veranda', label: '坐在雜貨店門前', action: 'sit', x: 1232, y: 893, radius: 43, seat: { x: 1232, y: 874 }, photoSeat: true },
     { id: 'home-veranda', label: '坐在緣側', action: 'sit', x: 404, y: 490, radius: 43, seat: { x: 404, y: 478 }, photoSeat: true },
     { id: 'tea-veranda', label: '坐在紅墊上', action: 'sit', x: 1803, y: 895, radius: 41, seat: { x: 1803, y: 878 }, photoSeat: true },
     { id: 'tea', label: '茶屋聊天', action: 'tea', x: 1880, y: 896, radius: 58 },

@@ -12,8 +12,8 @@
   --yellow:#f2c14e; --coral:#ef7b5b; --mint:#8fc9b5; --sky:#9cc7e8; --line:#23413f;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%;background:#e9e2d0;overflow:hidden;font-family:"Noto Sans TC","Microsoft JhengHei",sans-serif;color:var(--ink)}
-#stage{position:absolute;left:50%;top:50%;width:1920px;height:1080px;transform-origin:center center;background:var(--bg);overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.18)}
+html,body{height:100%;background:#e9e2d0;overflow:clip;font-family:"Noto Sans TC","Microsoft JhengHei",sans-serif;color:var(--ink)}
+#stage{position:absolute;left:50%;top:50%;width:1920px;height:1080px;transform-origin:center center;background:var(--bg);overflow:clip;box-shadow:0 20px 60px rgba(0,0,0,.18)}
 .slide{position:absolute;inset:0;padding:90px 110px;opacity:0;visibility:hidden;transition:opacity .45s ease,visibility .45s}
 .slide.on{opacity:1;visibility:visible}
 /* 背景裝飾：淡淡的像素點 */
@@ -285,6 +285,19 @@ p,li{font-size:38px;line-height:1.55;color:var(--ink2)}
 #nav{position:fixed;left:50%;bottom:10px;transform:translateX(-50%);z-index:50;display:flex;gap:8px;opacity:.0;transition:opacity .3s}
 body:hover #nav{opacity:.9}
 #nav button{border:2px solid #23413f;background:#fffdf7;border-radius:999px;padding:4px 16px;font:inherit;font-size:14px;cursor:pointer}
+
+/* 河岸日和關卡 */
+#s2 .tl{gap:30px}
+#s2 .tl .card{min-width:0;padding:22px 22px 26px}
+#s2 .tl .pic{height:228px}
+#s2 .tl h3{font-size:37px}
+#s2 .tl li{font-size:27px}
+#s2 .tl .go{font:inherit;font-size:28px;font-weight:900;cursor:pointer}
+.lv:nth-child(4) .stg,#d4 .tag{background:var(--sky)}
+#d4 .game-gallery{width:810px;margin-top:66px}
+#d4 .game-gallery .dpic{aspect-ratio:16/9;background:var(--ink)}
+#d4 .game-gallery img[hidden]{display:none}
+#d4 .shotbar .sc{padding-inline:20px;white-space:nowrap}
 </style>
 </head>
 <body>
@@ -337,6 +350,14 @@ body:hover #nav{opacity:.9}
       <ul><li>擔任隊輔，進行環境教育</li><li>開發鶯歌實境解謎遊戲</li></ul>
       <div class="go">▶ 進入關卡</div>
     </div>
+    <div class="card lv" onclick="openStage(4)">
+      <span class="stg">STAGE 4</span>
+      <div class="pic"><img src="河岸日和/town-street.jpg" alt="河岸日和的村莊商店街"></div>
+      <div class="when">個人作品</div>
+      <h3>河岸日和</h3>
+      <ul><li>河岸村莊探索遊戲</li><li>散步、釣魚與夾娃娃</li></ul>
+      <button type="button" class="go">▶ 進入關卡</button>
+    </div>
   </div>
 
   <div class="loading" id="loading">
@@ -345,6 +366,35 @@ body:hover #nav{opacity:.9}
     <div class="lbar"><i id="lfill"></i></div>
     <div class="lp"><span class="blink">LOADING</span> <b id="lpct">0%</b></div>
     <div class="lh" id="lhint">載入關卡資料…</div>
+  </div>
+
+  <!-- STAGE 4 -->
+  <div class="detail" id="d4">
+    <button class="back" onclick="closeStage()">← 返回關卡選擇</button>
+    <span class="tag">STAGE 4　個人作品</span>
+    <div class="drow">
+      <div class="dl">
+        <h3>河岸日和</h3>
+        <div class="card ft"><div><b>瀏覽器探索遊戲</b><span>在手繪風格的河岸村莊自由散步</span></div></div>
+        <div class="card ft"><div><b>村莊日常</b><span>逛雜貨店和茶屋，也能在住宅緣側坐下休息</span></div></div>
+        <div class="card ft"><div><b>休閒小遊戲</b><span>到河邊釣魚，或用代幣挑戰復古夾娃娃機</span></div></div>
+      </div>
+      <div class="dr game-gallery">
+        <figure class="dpic">
+          <img src="河岸日和/town-street.jpg" alt="商店街上的雜貨店與茶屋">
+          <img src="河岸日和/veranda.jpg" alt="主角坐在住宅緣側" hidden>
+          <img src="河岸日和/river-fishing.jpg" alt="主角在河邊拋竿" hidden>
+          <img src="河岸日和/claw-machine.jpg" alt="復古夾娃娃機操作畫面" hidden>
+        </figure>
+        <div class="shotbar" role="group" aria-label="切換實機截圖">
+          <button type="button" class="sc on" aria-pressed="true" onclick="gameShot(0)">村莊街景</button>
+          <button type="button" class="sc" aria-pressed="false" onclick="gameShot(1)">緣側休息</button>
+          <button type="button" class="sc" aria-pressed="false" onclick="gameShot(2)">河岸釣魚</button>
+          <button type="button" class="sc" aria-pressed="false" onclick="gameShot(3)">夾娃娃</button>
+        </div>
+      </div>
+    </div>
+    <button class="nextbtn" onclick="finishStages()">前往下一頁 ▶</button>
   </div>
 
   <div class="warp" id="warp">
@@ -392,7 +442,7 @@ body:hover #nav{opacity:.9}
 
   <!-- STAGE 2 -->
   <div class="detail" id="d2">
-    <button class="nextbtn" onclick="finishStages()">前往下一頁 ▶</button>
+    <button class="nextbtn" onclick="nextStage(3)">前往下一關 ▶</button>
     <button class="back" onclick="closeStage()">← 返回關卡選擇</button>
     <span class="tag">STAGE 3　見習</span>
     <div class="drow">
@@ -513,8 +563,8 @@ let cur=0, step=0;
 function fit(){const s=Math.min(innerWidth/1920,innerHeight/1080);stage.style.transform=`translate(-50%,-50%) scale(${s})`}
 addEventListener('resize',fit);fit();
 let detailOpen=0, loadTimer=null, tok=0;
-const STG={1:'遊戲化課室平台',2:'嘉義種種影像',3:'新北市環境文教協會'};
-const DET={1:'d1',2:'d3',3:'d2'};
+const STG={1:'遊戲化課室平台',2:'嘉義種種影像',3:'新北市環境文教協會',4:'河岸日和'};
+const DET={1:'d1',2:'d3',3:'d2',4:'d4'};
 let warpTimer=null;
 const HINTS=['載入關卡資料…','召喚角色中…','準備地圖…','即將出發！'];
 function openStage(n){
@@ -567,6 +617,14 @@ function shot(i){
   document.getElementById('shotcap').textContent=SHOTCAP[i];
 }
 const GALCAP=['圖：嘉義市政府提供（活動海報）','圖：種種影像（角色圖卡）','圖：嘉義市政府提供（站長角色介紹）'];
+function gameShot(index){
+  const gallery=document.querySelector('#d4 .game-gallery');
+  gallery.querySelectorAll('img').forEach((img,i)=>{ img.hidden=i!==index });
+  gallery.querySelectorAll('button').forEach((button,i)=>{
+    button.classList.toggle('on',i===index);
+    button.setAttribute('aria-pressed',i===index);
+  });
+}
 function gal(i){
   document.querySelectorAll('.gi').forEach((s,k)=>s.classList.toggle('on',k===i));
   document.querySelectorAll('.gc').forEach((b,k)=>b.classList.toggle('on',k===i));
