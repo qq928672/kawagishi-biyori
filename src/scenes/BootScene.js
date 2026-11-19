@@ -5,6 +5,7 @@ import { downscale, resizeTo, recolor, drawFallback, drawMissing } from '../core
 import { PROP_DRAWERS } from '../world/props.js';
 import { ui } from '../core/ui.js';
 import { loading } from '../core/loading.js';
+import { home, COVER_URL } from '../core/home.js';
 
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -12,9 +13,10 @@ export class BootScene extends Phaser.Scene {
   }
 
   preload() {
-    // 讀取進度顯示在 index.html 的封面載入畫面（src/core/loading.js）
-    loading.progress(0);
-    this.load.on('progress', (p) => loading.progress(p));
+    // 讀取畫面（index.html）已經顯示；這裡依實際下載量回報進度（src/core/loading.js）
+    // 進度分配：下載素材 2%～86% → 建立紋理 86%～92% → 建立村莊 92%～97% → 畫好第一格才 100%
+    loading.set(0.02);
+    this.trackDownload(0.02, 0.86);
 
     this.failed = new Set();
     // 最佳化 WebP 找不到時，在 create() 以第二輪載入改用原始 PNG
@@ -27,15 +29,55 @@ export class BootScene extends Phaser.Scene {
 
     // 同一個檔案只載入一次；PNG 改載入 public/assets/opt/ 的 WebP（已縮到需要的尺寸）
     // 網址加 ?png=1 可強制載入原始 PNG（比對畫質用）
-    const forcePng = new URLSearchParams(window.location.search).has('png');
+    const params = new URLSearchParams(window.location.search);
+    const forcePng = params.has('png');
+    // 開發測試：?failtest=1 讓第一次下載某個素材失敗，用來檢查「重試」
+    const failTest = import.meta.env.DEV && params.has('failtest');
+    this.urls = new Map(); // key → 正確網址（重試用）
     const files = new Map();
     for (const s of Object.values(SPRITES)) if (s.file) files.set(s.file, `raw:${s.file}`);
     for (const s of Object.values(SHEETS)) files.set(s.file, `raw:${s.file}`);
     for (const [file, key] of files) {
       const path = forcePng ? file : optPath(file);
       if (path !== file) this.pngFallback.set(key, file);
-      this.load.image(key, path);
+      this.urls.set(key, path);
+      this.load.image(key, failTest && key.includes('stone_1') ? 'assets/ground/__missing__.webp' : path);
     }
+    // 首頁封面也算在進度裡（下載後瀏覽器會快取，首頁的 <img> 直接使用；紋理用完即移除）
+    this.load.image('cover:home', COVER_URL());
+  }
+
+  /**
+   * 依實際下載的位元組計算進度（不是計時器）。
+   * 還沒開始下載的檔案以已知檔案的平均大小估計；讀取失敗的檔案視為完成，交給 create() 處理。
+   */
+  trackDownload(from, to) {
+    const bytes = new Map(); // key → { l: 已下載, t: 總量（未知為 0） }
+    const report = () => {
+      const known = [...bytes.values()].filter((b) => b.t > 0);
+      const avg = known.length ? known.reduce((s, b) => s + b.t, 0) / known.length : 40000;
+      let L = 0;
+      let T = 0;
+      for (const b of bytes.values()) {
+        const t = b.t > 0 ? b.t : avg;
+        T += t;
+        L += b.done ? t : Math.min(b.l, t);
+      }
+      T += Math.max(0, this.load.totalToLoad - bytes.size) * avg;
+      if (T > 0) loading.set(from + (to - from) * (L / T));
+    };
+    this.load.on('fileprogress', (file) => {
+      bytes.set(file.key, { l: file.bytesLoaded || 0, t: file.bytesTotal || 0, done: false });
+      report();
+    });
+    const done = (key) => {
+      const b = bytes.get(key) || { l: 0, t: 0 };
+      b.done = true;
+      bytes.set(key, b);
+      report();
+    };
+    this.load.on('filecomplete', (key) => done(key));
+    this.load.on('loaderror', (file) => done(file.key));
   }
 
   rawSource(file) {
@@ -45,23 +87,46 @@ export class BootScene extends Phaser.Scene {
   }
 
   create() {
-    // 有 WebP 沒載入成功（缺檔回 404，或開發伺服器回傳網頁而無法解碼）：補載原始 PNG，完成後再建立紋理
+    // 有 WebP 沒載入成功（缺檔回 404，或開發伺服器回傳網頁而無法解碼）：補載原始 PNG，完成後再檢查
     const list = [...this.pngFallback].filter(([key]) => !this.textures.exists(key));
     this.pngFallback.clear();
     if (list.length) {
       for (const [key, png] of list) {
         console.warn('[boot] 找不到最佳化素材，改用原圖：', png);
+        this.urls.set(key, png);
         this.load.image(key, png);
       }
-      this.load.once('complete', () => this.buildTextures());
+      this.load.once('complete', () => this.checkMissing());
       this.load.start();
       return;
     }
-    this.buildTextures();
+    this.checkMissing();
+  }
+
+  /** 還有素材沒下載成功：顯示簡短錯誤與「重試」（不自動進入遊戲） */
+  checkMissing(attempt = 0) {
+    const missing = [...this.urls.keys()].filter((key) => !this.textures.exists(key));
+    if (!missing.length) {
+      this.buildTextures();
+      return;
+    }
+    console.warn('[boot] 下載失敗的素材：', missing);
+    loading.error(`有 ${missing.length} 個素材下載失敗，請檢查網路後重試。`, {
+      onRetry: () => {
+        for (const key of missing) {
+          this.failed.delete(key);
+          this.load.image(key, `${this.urls.get(key)}?retry=${attempt + 1}`);
+        }
+        this.load.once('complete', () => this.checkMissing(attempt + 1));
+        this.load.start();
+      },
+      // 仍要進入：缺少的素材以替代圖顯示
+      onSkip: () => this.buildTextures(),
+    });
   }
 
   buildTextures() {
-    loading.preparing();
+    loading.set(0.88);
     const missing = [];
     for (const [key, s] of Object.entries(SPRITES)) {
       if (s.raw) {
@@ -156,9 +221,28 @@ export class BootScene extends Phaser.Scene {
     ui.setTextureResolver((key) => (this.textures.exists(key) ? this.textures.getBase64(key) : null));
     if (missing.length) ui.toast(`有 ${missing.length} 個素材載入失敗，已用佔位圖代替：${missing.join(', ')}`, 6000);
 
+    // 封面已在瀏覽器快取中，首頁 <img> 直接使用；不需要留著 GPU 紋理
+    if (this.textures.exists('cover:home')) this.textures.remove('cover:home');
+
     const preview = new URLSearchParams(window.location.search).get('preview');
-    if (preview === 'walk') loading.hide(); // 小鎮會在畫好第一格後自己關閉載入畫面
-    this.scene.start(preview === 'walk' ? 'WalkPreview' : 'Town');
+    if (preview === 'walk') {
+      loading.complete();
+      this.scene.start('WalkPreview');
+      return;
+    }
+    // 建立村莊（地面烘焙、物件、碰撞）。建好後立刻暫停：讀取與首頁期間不能操作地圖
+    loading.set(0.92);
+    const town = this.scene.get('Town');
+    town.events.once(Phaser.Scenes.Events.CREATE, () => {
+      town.scene.pause();
+      home.attachTown(town);
+      loading.set(0.97);
+      // 暫停中的場景仍會繪製；等村莊畫好第一格，讀取才算完成
+      this.game.events.once(Phaser.Core.Events.POST_RENDER, () => {
+        loading.complete().then(() => home.show());
+      });
+    });
+    this.scene.start('Town');
   }
 }
 

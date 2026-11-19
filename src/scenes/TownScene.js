@@ -8,7 +8,6 @@ import { store, bus } from '../core/store.js';
 import { ui } from '../core/ui.js';
 import { audio } from '../core/audio.js';
 import { touch } from '../core/touch.js';
-import { loading } from '../core/loading.js';
 import { buildVillage, startFallingLeaves } from '../world/village.js';
 import { Garden, plotState } from '../world/garden.js';
 import { Cat } from '../world/cat.js';
@@ -135,23 +134,33 @@ export class TownScene extends Phaser.Scene {
       window.removeEventListener('beforeunload', onUnload);
       window.removeEventListener('blur', onBlur);
       document.removeEventListener('visibilitychange', onBlur);
+      this.events.off('wake', this.onWake, this); // 場景事件物件會跨次重建保留，這裡要自己移除
       ui.setPhotoSeat(false);
       this.garden.destroy();
     });
 
     audio.setAmbience('town');
-    cam.fadeIn(500, 0, 0, 0);
-    // 小鎮畫好第一格後，封面改為「輕觸開始」；這一下同時讓背景音樂開始播放
-    this.events.once('postupdate', () => {
-      const s = save.data.settings;
-      const music = s.sound && s.volume > 0;
-      loading.ready({
-        text: touch.pick('點一下畫面或按任意鍵開始', '輕觸畫面開始'),
-        note: music ? '♪ 開始後會播放背景音樂' : '音效已關閉，可在「設定」開啟',
-      });
-    });
-    // 首次進入：歡迎教學（只自動出現一次）；等玩家關掉封面後才出現
-    loading.onDone(() => this.time.delayedCall(450, () => this.showWelcome()));
+    // 建立後由 BootScene 暫停；玩家在首頁按「開始／繼續散步」才會呼叫 onGameStart()
+    this.started = false;
+  }
+
+  /** 首頁按下開始／繼續：恢復操作（按鍵鎖一下，避免開始用的那一下觸發互動） */
+  onGameStart(first) {
+    this.started = true;
+    this.input.keyboard.resetKeys();
+    this.lockInput(350);
+    this.cameras.main.fadeIn(first ? 500 : 350, 0, 0, 0);
+    ui.updateWallet();
+    ui.updateNightButton();
+    // 首次進入：歡迎教學（只自動出現一次；已讀過就不會再出現）
+    if (first) this.time.delayedCall(450, () => this.showWelcome());
+  }
+
+  /** 回到首頁前：停下腳步、記住位置 */
+  onGameHold() {
+    this.input.keyboard.resetKeys();
+    this.setWalking(false);
+    this.savePosition();
   }
 
   showWelcome() {
@@ -599,12 +608,13 @@ export class TownScene extends Phaser.Scene {
     this.syncPlayerSprite();
     this.cameras.main.centerOn(s.x, s.y);
     this.garden.refresh();
-    this.savePosition();
+    // 重設後不立刻寫入位置：在首頁重新開始時，按鈕應顯示「開始散步」
     this.time.delayedCall(300, () => this.showWelcome());
   }
 
   savePosition() {
-    if (!this.feet || this.sitting) return;
+    // 還在首頁、沒真的開始玩之前不寫入位置（避免只開過首頁就被當成「有存檔」）
+    if (!this.feet || this.sitting || !this.started) return;
     save.setPlayer(this.feet.x, this.feet.y, this.facing);
   }
 

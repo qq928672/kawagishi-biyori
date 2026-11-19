@@ -1,103 +1,95 @@
-// 開場載入畫面（封面 + 讀取進度）：畫面本身寫在 index.html，網頁一打開就顯示；
-// 這裡依 Phaser 素材載入的實際進度更新文字與進度條，進入小鎮後淡出。
-const root = () => document.getElementById('loading');
+// 讀取畫面（畫面本身寫在 index.html，網頁一打開就顯示；這裡只更新數字與進度）
+//
+// 進度規則：
+// - set(p)：BootScene 依實際下載量與初始化步驟回報（0～1），只會往前、不會倒退。
+// - 畫面上的數字平滑追上回報值，但永遠不超過回報值；在 complete() 之前最多顯示 99%。
+// - complete()：所有素材與初始化完成後才呼叫，顯示 100% 後淡出（不為了動畫刻意等待）。
+// - error()：關鍵素材下載失敗時顯示簡短訊息與「重試」。
+const $ = (sel) => document.querySelector(`#loading ${sel}`);
 
-let shown = -1;
+let target = 0;
+let shown = 0;
+let finished = false;
+let raf = 0;
+let lastPct = -1;
+
+function render() {
+  const el = document.getElementById('loading');
+  if (!el) return;
+  const cap = finished ? 1 : 0.99;
+  const goal = Math.min(target, cap);
+  // 平滑追上（每格補上差距的 18%，至少 0.4%），但不超過目標
+  if (shown < goal) shown = Math.min(goal, shown + Math.max(0.004, (goal - shown) * 0.18));
+  el.style.setProperty('--p', shown.toFixed(4));
+  const pct = Math.floor(shown * 100);
+  if (pct !== lastPct) {
+    lastPct = pct;
+    const node = $('.ld-pct');
+    if (node) node.textContent = `${pct}%`;
+  }
+  if (shown < goal || (finished && shown < 1)) raf = requestAnimationFrame(render);
+  else raf = 0;
+}
+
+function kick() {
+  if (!raf) raf = requestAnimationFrame(render);
+}
 
 export const loading = {
-  /** p：0～1；text：進度條上方的文字 */
-  progress(p, text = '載入中') {
-    const el = root();
-    if (!el) return;
-    el.classList.remove('waiting');
-    const pct = Math.max(0, Math.min(100, Math.round(p * 100)));
-    if (pct < shown) return; // 第二輪補載（缺 WebP 改用 PNG）時不讓進度倒退
-    shown = pct;
-    const panel = el.querySelector('.ld-panel');
-    if (!panel || !el.querySelector('.ld-track')) return; // 已切換成「輕觸開始」
-    panel.style.setProperty('--p', `${pct}%`); // 進度線與浮標的位置
-    el.querySelector('.ld-pct').textContent = `${pct}%`;
-    const label = el.querySelector('.ld-text');
-    if (label.textContent !== text) label.textContent = text;
+  /** 回報實際進度（0～1）；只會往前 */
+  set(p) {
+    if (finished || !(p > target)) return;
+    target = Math.min(1, p);
+    if (import.meta.env.DEV) (window.__loadingLog ||= []).push([Math.round(performance.now()), +target.toFixed(4)]); // 驗證用：實際回報的進度
+    kick();
   },
 
-  /** 素材都下載完、正在準備畫面 */
-  preparing() {
-    this.progress(1, '準備村莊中');
+  get progress() {
+    return target;
   },
 
-  /**
-   * 載入完成：封面停在畫面上，提示「輕觸畫面開始」。
-   * 瀏覽器規定聲音要在玩家點擊或按鍵後才能播放，這一下同時讓背景音樂開始（audio.js 在同一個點擊啟用聲音）。
-   * text：主要提示；note：小字說明（例如背景音樂將會播放）
-   */
-  ready({ text, note } = {}) {
-    const el = root();
-    if (!el) {
-      finish();
-      return;
-    }
-    if (el.classList.contains('ready')) return;
-    el.classList.remove('waiting');
-    el.classList.add('ready');
-    const panel = el.querySelector('.ld-panel');
-    const start = document.createElement('div');
-    start.className = 'ld-start';
-    const t = document.createElement('div');
-    t.className = 'ld-start-text';
-    t.textContent = text || '輕觸畫面開始';
-    start.append(t);
-    if (note) {
-      const n = document.createElement('div');
-      n.className = 'ld-start-note';
-      n.textContent = note;
-      start.append(n);
-    }
-    panel.replaceChildren(start);
-    el.setAttribute('role', 'button');
-    el.setAttribute('aria-label', t.textContent);
-    el.tabIndex = 0;
-    el.focus({ preventScroll: true });
-
-    const go = () => {
-      window.removeEventListener('keydown', onKey, true);
-      el.removeEventListener('pointerup', onTap);
-      this.hide();
-    };
-    const onTap = () => go();
-    // 開始用的按鍵不要傳到遊戲（避免同時觸發互動或關掉教學）；聲音的啟用在 audio.js 更早的監聽中處理
-    const onKey = (e) => {
-      if (['Shift', 'Control', 'Alt', 'Meta', 'Tab'].includes(e.key)) return;
-      e.preventDefault();
-      e.stopImmediatePropagation();
-      go();
-    };
-    el.addEventListener('pointerup', onTap);
-    window.addEventListener('keydown', onKey, true);
+  /** 全部完成：補到 100% 後淡出；回傳淡出完成的 Promise */
+  complete() {
+    finished = true;
+    target = 1;
+    kick();
+    return new Promise((resolve) => {
+      const wait = () => {
+        if (shown < 1) {
+          requestAnimationFrame(wait);
+          return;
+        }
+        const el = document.getElementById('loading');
+        if (!el) { resolve(); return; }
+        el.classList.add('done');
+        setTimeout(() => {
+          el.remove();
+          resolve();
+        }, 620);
+      };
+      wait();
+    });
   },
 
-  /** 是否還停在封面（尚未開始） */
-  get waiting() {
-    return !!root() && !root().classList.contains('done');
+  /** 顯示錯誤與「重試」；onSkip 有提供時另外顯示「仍要進入」 */
+  error(message, { onRetry, onSkip } = {}) {
+    const box = $('.ld-error');
+    if (!box) return;
+    box.hidden = false;
+    box.querySelector('p').textContent = message;
+    const retry = box.querySelector('.ld-retry');
+    const skip = box.querySelector('.ld-skip');
+    retry.onclick = () => { this.clearError(); onRetry?.(); };
+    skip.hidden = !onSkip;
+    skip.onclick = () => { this.clearError(); onSkip?.(); };
+    $('.ld-status').textContent = '素材載入失敗';
+    retry.focus({ preventScroll: true });
   },
 
-  /** 封面關閉後執行（已關閉則立刻執行） */
-  onDone(fn) {
-    if (!this.waiting) fn();
-    else doneCallbacks.push(fn);
-  },
-
-  /** 淡出並移除 */
-  hide() {
-    const el = root();
-    if (!el || el.classList.contains('done')) return;
-    el.classList.add('done');
-    setTimeout(() => el.remove(), 700);
-    finish();
+  clearError() {
+    const box = $('.ld-error');
+    if (box) box.hidden = true;
+    const s = $('.ld-status');
+    if (s) s.textContent = '正在前往河岸小村…';
   },
 };
-
-const doneCallbacks = [];
-function finish() {
-  while (doneCallbacks.length) doneCallbacks.shift()();
-}

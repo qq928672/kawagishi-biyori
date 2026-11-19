@@ -28,7 +28,6 @@ export const SPRITES = {
   angler_front: { file: S('angler_front'), height: 91 },
   angler_back: { file: S('angler_back'), height: 91 },
   player_bench: { file: S('player_bench'), height: 92 },
-  tile_grass: { file: S('tile_grass'), height: 160 },
   tile_dirt: { file: S('tile_dirt'), height: 160 },
   tile_cobble: { file: S('tile_cobble'), height: 160 },
   wall_straight: { file: S('wall_straight'), height: 130 },
@@ -106,6 +105,16 @@ export const SPRITES = {
 
   // ---- 釣魚近景背景（不縮放） ----
   fishing_bg: { file: 'assets/bg/fishing_bg.jpg', raw: true },
+
+  // ---- 地板素材.png（src/dev/sliceSheets.js 裁切；已是需要的尺寸，不再縮放） ----
+  // 草地：400×400 可無縫鋪設的圖塊（已實心化、降低對比）；地面在 world/village.js 烘焙成一張畫布
+  ground_grass_a: { file: 'assets/ground/grass_a.webp', raw: true },
+  ground_grass_b: { file: 'assets/ground/grass_b.webp', raw: true },
+  ground_grass_c: { file: 'assets/ground/grass_c.webp', raw: true },
+  // 踏石六種（同一縮放倍率，保留相對大小）
+  ...Object.fromEntries([1, 2, 3, 4, 5, 6].map((n) => [`ground_stone_${n}`, { file: `assets/ground/stone_${n}.webp`, raw: true }])),
+  // 草叢、花、苔蘚（集中放在邊緣、牆角、樹根、入口）
+  ...Object.fromEntries(['tuft_1', 'tuft_2', 'tuft_3', 'daisy', 'flowers', 'moss_1', 'moss_2'].map((n) => [`ground_${n}`, { file: `assets/ground/deco_${n}.webp`, raw: true }])),
 
   // ---- 程式繪製（素材缺口） ----
   bus_stop: { file: S('bus_shelter_tile'), prop: 'bus_stop', height: 150 },

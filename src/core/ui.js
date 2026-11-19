@@ -516,14 +516,15 @@ export const ui = {
       row('顯示碰撞／通行區（除錯用，F2）', debug),
       el('p', 'hint', '聲音需要在按下任一鍵或點擊畫面後才會開始播放。'),
     );
-    this.openModal({
-      title: '設定',
-      body,
-      buttons: [
-        { label: '重設進度…', danger: true, onClick: () => { this.openResetConfirm(); return false; } },
-        { label: '關閉', primary: true },
-      ],
-    });
+    const buttons = [
+      { label: '重設進度…', danger: true, onClick: () => { this.openResetConfirm(); return false; } },
+      { label: '關閉', primary: true },
+    ];
+    // 在村莊裡散步時可以回到首頁（首頁上開啟設定時不顯示）
+    if (store.mode === 'explore') {
+      buttons.unshift({ label: '回到首頁', onClick: () => { setTimeout(() => bus.emit('go-home'), 0); } });
+    }
+    this.openModal({ title: '設定', body, buttons });
   },
 
   openResetConfirm() {

@@ -9,16 +9,18 @@ function screenshotSaver() {
     name: 'screenshot-saver',
     apply: 'serve',
     configureServer(server) {
-      // 素材最佳化（開發用）：POST /__asset?name=xxx.webp → 存到 public/assets/opt/xxx.webp（見 src/dev/optimizeAssets.js）
+      // 素材處理（開發用）：POST /__asset?dir=opt&name=xxx.webp → 存到 public/assets/<dir>/xxx.webp
+      // dir：opt（optimizeAssets.js）、ground／ui／cover（sliceSheets.js 從素材板裁切）
       server.middlewares.use('/__asset', (req, res) => {
         if (req.method !== 'POST') { res.statusCode = 405; return res.end(); }
         const url = new URL(req.url, 'http://x');
         const name = url.searchParams.get('name') || '';
-        if (!/^[\w-]+\.webp$/.test(name)) { res.statusCode = 400; return res.end('bad name'); }
+        const sub = url.searchParams.get('dir') || 'opt';
+        if (!/^[\w-]+\.(webp|png)$/.test(name) || !['opt', 'ground', 'ui', 'cover'].includes(sub)) { res.statusCode = 400; return res.end('bad name'); }
         const chunks = [];
         req.on('data', (c) => chunks.push(c));
         req.on('end', () => {
-          const dir = path.resolve(__dirname, 'public/assets/opt');
+          const dir = path.resolve(__dirname, 'public/assets', sub);
           fs.mkdirSync(dir, { recursive: true });
           fs.writeFileSync(path.join(dir, name), Buffer.concat(chunks));
           res.end('ok');

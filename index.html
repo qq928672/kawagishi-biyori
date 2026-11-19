@@ -4,156 +4,202 @@
     <meta charset="UTF-8" />
     <!-- viewport-fit=cover：畫面延伸到瀏海／圓角區，介面再以 safe-area 內距避開；禁止縮放避免操作時誤觸放大 -->
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-    <meta name="theme-color" content="#2b2420" />
+    <meta name="theme-color" content="#f6e7cc" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="河岸日和" />
     <title>河岸日和</title>
-    <!-- 開場封面：寫在網頁本身，遊戲程式還在下載時就能先顯示。
-         背景圖為無字版（原檔：素材/無字封面.png），標題用真正的字型以 HTML／CSS 排版，不畫進圖片。 -->
-    <link rel="preload" as="image" href="/assets/opt/cover.webp" media="(min-width: 700px)" />
-    <link rel="preload" as="image" href="/assets/opt/cover-sm.webp" media="(max-width: 699px)" />
-    <!-- 標題字型：思源宋體（Noto Serif TC）。text= 只下載標題用到的字，檔案只有數 KB；離線時改用系統的宋體／明體 -->
+    <!--
+      開場流程：讀取畫面（本頁，網頁一打開就顯示）→ 首頁封面（本頁 #home）→ 小鎮。
+      - 讀取畫面的拆件素材很小（public/assets/ui/ld_*.webp），沒載入時以 CSS 底色代替，不會擋住讀取流程。
+      - 進度由 src/scenes/BootScene.js 依實際下載量更新（src/core/loading.js）。
+      - 首頁封面 public/assets/cover/home*.webp（原檔：素材/新封面.png），標題與按鈕以 HTML／CSS 呈現。
+      素材由 src/dev/sliceSheets.js 從素材板裁切產生。
+    -->
+    <link rel="preload" as="image" href="/assets/ui/ld_frame.webp" />
+    <link rel="preload" as="image" href="/assets/ui/ld_water.webp" />
+    <link rel="preload" as="image" href="/assets/ui/ld_cat.webp" />
+    <!-- 標題字型：思源宋體（Noto Serif TC）。text= 只下載畫面上用到的字（數十 KB）；離線時改用系統的宋體／明體 -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;700&display=block&text=%E6%B2%B3%E5%B2%B8%E6%97%A5%E5%92%8C%E5%9C%A8%E5%B0%8F%E6%9D%91%E8%A3%A1%EF%BC%8C%E6%85%A2%E9%81%8E%E5%AD%90" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;700&display=swap&text=%E6%B2%B3%E5%B2%B8%E6%97%A5%E5%92%8C%E5%9C%A8%E5%B0%8F%E6%9D%91%E8%A3%A1%EF%BC%8C%E6%85%A2%E9%81%8E%E5%AD%90%E6%AD%A3%E5%89%8D%E5%BE%80%E2%80%A6%E8%B5%B0%E4%B9%9F%E6%9C%83%E9%81%87%E8%A6%8B%E5%A5%BD%E9%A2%A8%E6%99%AF0123456789%25%E7%B9%BC%E7%BA%8C%E6%95%A3%E6%AD%A5%E9%96%8B%E5%A7%8B%E7%8E%A9%E6%B3%95%E8%AA%AA%E6%98%8E%E8%A8%AD%E5%AE%9A%E9%87%8D%E6%96%B0%E7%B4%A0%E6%9D%90%E8%BC%89%E5%85%A5%E5%A4%B1%E6%95%97%E8%AB%8B%E6%AA%A2%E6%9F%A5%E7%B6%B2%E8%B7%AF%E5%BE%8C%E8%A9%A6%E4%BB%8D%E8%A6%81%E9%80%B2" />
     <style>
-      #loading {
+      :root {
         --tea: #4a2c1c;       /* 深茶褐：主標 */
-        --tea-soft: #5e3d29;  /* 副標、讀取文字 */
+        --tea-soft: #6a4730;  /* 副標、說明文字 */
+        --paper: #fbf0dc;     /* 暖白紙 */
+        --cover-paper: #f9e7c8; /* 封面邊緣的紙色（封面外的留白用同色，接起來看不出邊界） */
         --serif: "Noto Serif TC", "Source Han Serif TC", "思源宋體", "Songti TC", "PMingLiU", "MingLiU", serif;
+        --sans: "Noto Sans TC", "Microsoft JhengHei", "PingFang TC", "Heiti TC", sans-serif;
+      }
+
+      /* ================= 讀取畫面 ================= */
+      /* 分層（z-index）：暖白背景 → 村落裝飾 → 進度底槽與水色填充 → 木框 → 貓咪及植物 → 文字 */
+      #loading {
         position: fixed; inset: 0; z-index: 50; overflow: hidden;
-        background: #2b2420; color: var(--tea);
-        font-family: "Noto Sans TC", "Microsoft JhengHei", "PingFang TC", "Heiti TC", sans-serif;
+        background:
+          radial-gradient(ellipse at 50% 42%, rgba(255, 252, 244, 0.9), rgba(255, 252, 244, 0) 62%),
+          radial-gradient(ellipse at 50% 120%, rgba(214, 186, 140, 0.28), rgba(214, 186, 140, 0) 60%),
+          var(--paper);
+        color: var(--tea); font-family: var(--sans);
+        display: flex; align-items: center; justify-content: center;
         transition: opacity 0.6s ease; touch-action: none; user-select: none; -webkit-user-select: none;
       }
       #loading.done { opacity: 0; pointer-events: none; }
-      #loading:focus { outline: none; }
-
-      /* 背景：同一張封面放大模糊，填滿封面以外的區域 */
-      #loading .ld-blur {
-        position: absolute; inset: -40px; width: calc(100% + 80px); height: calc(100% + 80px);
-        object-fit: cover; filter: blur(24px) brightness(0.72);
+      #loading .ld-col {
+        position: relative; width: min(600px, 84vw);
+        display: flex; flex-direction: column; align-items: center;
       }
-      /* 封面舞台：與圖片同比例、完整顯示；標題與讀取條以舞台寬度（cqw）定位，任何螢幕都落在畫面上相同位置 */
-      #loading .ld-stage {
+      #loading .ld-village { z-index: 1; width: min(380px, 62%); height: auto; margin-bottom: 6px; opacity: 0.95; }
+      #loading .ld-branch { position: absolute; z-index: 4; width: 170px; left: -40px; top: -18px; opacity: 0.9; transform: rotate(-8deg); }
+      #loading .ld-plants { position: fixed; z-index: 4; width: min(200px, 22vw); right: calc(2vw + env(safe-area-inset-right, 0px)); bottom: calc(1vh + env(safe-area-inset-bottom, 0px)); }
+      #loading .ld-status { z-index: 5; margin-top: 4px; font-family: var(--serif); font-weight: 500; font-size: 20px; letter-spacing: 0.14em; color: var(--tea); }
+      /* 進度條：外框比例依木框原圖 1716×148；底槽與填充只在木框內孔（實測位置）裡 */
+      #loading .ld-bar { position: relative; width: 100%; aspect-ratio: 1716 / 148; margin-top: 64px; }
+      #loading .ld-trough {
+        position: absolute; z-index: 2; left: 4.43%; width: 91.2%; top: 22.97%; height: 55.41%;
+        border-radius: 999px; overflow: hidden; background: rgba(150, 120, 86, 0.18);
+        container-type: inline-size;
+      }
+      #loading .ld-fill { position: absolute; left: 0; top: 0; bottom: 0; width: calc(100% * var(--p, 0)); overflow: hidden; border-radius: 999px; }
+      #loading .ld-water { position: absolute; left: 0; top: 0; width: 100cqw; height: 100%; object-fit: cover; display: block; }
+      #loading .ld-frame { position: absolute; z-index: 3; inset: 0; width: 100%; height: 100%; display: block; }
+      /* 貓咪：跟著水色前端走，但不超出木框左右邊界 */
+      #loading .ld-cat {
+        --cw: clamp(40px, 11%, 66px);
+        position: absolute; z-index: 4; width: var(--cw); height: auto; bottom: 46%;
+        left: clamp(0px, calc(4.43% + 91.2% * var(--p, 0) - var(--cw) * 0.5), calc(100% - var(--cw)));
+      }
+      #loading .ld-pct { z-index: 5; margin-top: 10px; font-family: var(--serif); font-weight: 700; font-size: 18px; color: var(--tea); font-variant-numeric: tabular-nums; letter-spacing: 0.06em; }
+      #loading .ld-tip { z-index: 5; margin-top: 6px; font-family: var(--serif); font-size: 14px; color: var(--tea-soft); letter-spacing: 0.18em; }
+      #loading .ld-error { z-index: 6; margin-top: 14px; text-align: center; font-size: 15px; color: #8a3a2a; }
+      #loading .ld-error p { margin: 0 0 10px; }
+      #loading .ld-error button {
+        font: 700 15px var(--sans); letter-spacing: 0.1em; color: var(--tea); cursor: pointer;
+        padding: 8px 26px; margin: 0 6px; border-radius: 999px; border: 2px solid #8a5a3c; background: #fff7e8;
+      }
+      #loading .ld-error button.ld-skip { border-color: transparent; background: none; font-weight: 500; color: var(--tea-soft); text-decoration: underline; }
+      #loading .ld-error[hidden] { display: none; }
+      /* 小畫面：減少裝飾，保留進度與文字 */
+      @media (max-height: 460px), (max-width: 480px) {
+        #loading .ld-village, #loading .ld-branch, #loading .ld-plants { display: none; }
+        #loading .ld-bar { margin-top: 54px; }
+        #loading .ld-status { font-size: 17px; }
+      }
+      @media (prefers-reduced-motion: reduce) { #loading .ld-fill, #loading .ld-cat { transition: none; } }
+
+      /* ================= 首頁封面（在 #ui 裡，介面視窗可以疊在上面） ================= */
+      #home {
+        position: absolute; inset: 0; z-index: 15; overflow: hidden;
+        background: radial-gradient(ellipse at 50% 50%, #fcecd2, var(--cover-paper) 70%);
+        font-family: var(--sans); color: var(--tea);
+        opacity: 0; transition: opacity 0.7s ease; touch-action: none; user-select: none; -webkit-user-select: none;
+      }
+      #home.show { opacity: 1; }
+      #home.hidden { display: none; }
+      /* 封面舞台：保留原圖比例（1672×941），完整顯示、不拉伸；文字與按鈕以舞台寬度（cqw）定位 */
+      #home .hm-stage {
         position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
         width: min(100vw, calc(100vh * 1672 / 941));
         width: min(100vw, calc(100dvh * 1672 / 941));
         aspect-ratio: 1672 / 941; container-type: inline-size;
       }
-      #loading .ld-stage picture, #loading .ld-art { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-      #loading .ld-art { object-fit: cover; }
-
-      /* 標題：左上的天空留白處（避開右側主角與貓、中央的村落） */
-      #loading .ld-title { position: absolute; left: 5.2cqw; top: 5.4cqw; margin: 0; }
-      #loading .ld-title h1 {
+      #home .hm-art { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+      /* 標題：左上紙面留白（避開右側主角與貓、中央的村落與河） */
+      #home .hm-title { position: absolute; left: 6cqw; top: 6.4cqw; margin: 0; }
+      #home .hm-title h1 {
         margin: 0; font-family: var(--serif); font-weight: 700; color: var(--tea);
-        font-size: clamp(30px, 6.6cqw, 120px); line-height: 1.15; letter-spacing: 0.14em;
-        /* 只有極淡的暖光，讓字在晚霞上更乾淨；不做描邊、立體或重陰影 */
-        text-shadow: 0 0 0.4em rgba(255, 236, 222, 0.35);
+        font-size: clamp(32px, 6.4cqw, 116px); line-height: 1.15; letter-spacing: 0.16em;
       }
-      /* 副標：小一級，整行留在天空裡（不跨進中央的樹與屋頂） */
-      #loading .ld-title p {
-        margin: 1.2cqw 0 0 0.18em; font-family: var(--serif); font-weight: 500; color: var(--tea-soft);
-        font-size: clamp(13px, 1.95cqw, 34px); line-height: 1.4; letter-spacing: 0.16em;
-        text-shadow: 0 0 0.5em rgba(255, 236, 222, 0.35);
+      #home .hm-title p {
+        margin: 1.2cqw 0 0 0.2em; font-family: var(--serif); font-weight: 500; color: var(--tea-soft);
+        font-size: clamp(13px, 1.9cqw, 34px); letter-spacing: 0.22em;
       }
-
-      /* 讀取條：左下河面上的一張半透明紙卡，進度線前端是一顆釣魚浮標 */
-      #loading .ld-panel {
-        --p: 0%;
-        position: absolute; left: 5.2cqw; bottom: 4.2cqw;
-        width: clamp(200px, 30cqw, 420px); /* 右緣停在浮標（約 40%）左側 */
-        padding: 13px 18px 15px; border-radius: 14px;
-        background: rgba(255, 249, 240, 0.8);
-        -webkit-backdrop-filter: blur(8px) saturate(1.1); backdrop-filter: blur(8px) saturate(1.1);
-        border: 1px solid rgba(110, 72, 44, 0.28);
-        box-shadow: 0 10px 28px rgba(60, 30, 15, 0.22);
+      #home.show .hm-title { animation: hm-rise 0.9s ease both; }
+      @keyframes hm-rise { from { opacity: 0; transform: translateY(8px); } }
+      /* 按鈕：封面下方河面以下的紙面空白（左側草叢與右側主角之間） */
+      #home .hm-actions {
+        position: absolute; left: 44%; bottom: 3.4cqw; transform: translateX(-50%);
+        display: flex; align-items: center; gap: 1.4cqw; white-space: nowrap;
       }
-      #loading .ld-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 11px; }
-      #loading .ld-text { font-size: 14px; font-weight: 600; letter-spacing: 0.12em; color: var(--tea-soft); }
-      #loading .ld-pct { font-family: var(--serif); font-size: 15px; font-weight: 700; color: var(--tea); font-variant-numeric: tabular-nums; }
-      #loading .ld-track { position: relative; height: 6px; border-radius: 3px; background: rgba(110, 72, 44, 0.16); }
-      #loading .ld-fill {
-        position: absolute; left: 0; top: 0; bottom: 0; width: var(--p); border-radius: 3px;
-        background: linear-gradient(90deg, #ecc277, #d9894f); transition: width 0.25s ease;
+      #home .hm-btn {
+        position: relative; border: 0; cursor: pointer; padding: 0; color: var(--tea);
+        font-family: var(--serif); font-weight: 700; letter-spacing: 0.14em;
+        background: center / 100% 100% no-repeat;
+        transition: transform 0.15s ease, filter 0.15s ease;
       }
-      #loading .ld-bob {
-        position: absolute; top: 50%; left: var(--p); width: 15px; height: 15px; margin: -7.5px 0 0 -7.5px;
-        border-radius: 50%; border: 1.5px solid var(--tea);
-        background: linear-gradient(#d0503f 0 50%, #fffaf2 50% 100%);
-        box-shadow: 0 2px 4px rgba(60, 30, 15, 0.25);
-        transition: left 0.25s ease; animation: ld-bob 1.6s ease-in-out infinite;
+      #home .hm-primary { background-image: url('/assets/ui/btn_wood.webp'); width: clamp(132px, 17cqw, 300px); height: clamp(40px, 4.4cqw, 76px); font-size: clamp(15px, 1.75cqw, 30px); }
+      #home .hm-secondary { background-image: url('/assets/ui/btn_green.webp'); width: clamp(104px, 12.5cqw, 220px); height: clamp(36px, 3.8cqw, 66px); font-size: clamp(13px, 1.4cqw, 24px); }
+      #home .hm-btn:hover { transform: translateY(-2px); filter: brightness(1.04); }
+      #home .hm-btn:active { transform: translateY(1px); }
+      #home .hm-btn:focus-visible { outline: 3px solid #d69a3e; outline-offset: 3px; border-radius: 999px; }
+      #home .hm-link {
+        border: 0; background: rgba(252, 240, 218, 0.78); border-radius: 999px; cursor: pointer; padding: 5px 12px; margin-left: 0.4cqw;
+        font: 500 clamp(12px, 1.15cqw, 19px) var(--serif); letter-spacing: 0.1em; color: var(--tea-soft);
+        text-decoration: underline dotted; text-underline-offset: 4px;
       }
-      @keyframes ld-bob { 50% { transform: translateY(-2px); } }
-      /* 遊戲程式還在下載（還沒有實際進度）：浮標在線上來回漂 */
-      #loading.waiting .ld-fill { width: 0; }
-      #loading.waiting .ld-bob { animation: ld-drift 2.2s ease-in-out infinite alternate, ld-bob 1.6s ease-in-out infinite; }
-      @keyframes ld-drift { from { left: 4%; } to { left: 96%; } }
-
-      /* 載入完成：等玩家輕觸開始（同時啟用背景音樂） */
-      #loading.ready { cursor: pointer; }
-      #loading .ld-start { text-align: center; }
-      #loading .ld-start-text {
-        font-size: 16px; font-weight: 700; letter-spacing: 0.16em; color: var(--tea);
-        animation: ld-breathe 2s ease-in-out infinite;
+      #home .hm-link:focus-visible { outline: 2px solid #d69a3e; outline-offset: 2px; }
+      #home .hm-link[hidden] { display: none; }
+      #home .hm-note {
+        position: absolute; left: 44%; bottom: 1cqw; transform: translateX(-50%); margin: 0; white-space: nowrap;
+        font-size: clamp(11px, 0.95cqw, 15px); color: var(--tea-soft); letter-spacing: 0.08em; opacity: 0.85;
       }
-      #loading .ld-start-note { margin-top: 5px; font-size: 12px; letter-spacing: 0.04em; color: #7a5a44; }
-      @keyframes ld-breathe { 50% { opacity: 0.55; } }
-
-      /* 手機橫向：卡片縮小一點 */
-      @media (max-height: 430px) {
-        #loading .ld-panel { padding: 9px 14px 11px; border-radius: 12px; }
-        #loading .ld-row { margin-bottom: 8px; }
-        #loading .ld-text { font-size: 12px; }
-        #loading .ld-pct { font-size: 13px; }
-        #loading .ld-start-text { font-size: 14px; }
-        #loading .ld-start-note { font-size: 11px; margin-top: 3px; }
-      }
-      /* 直向：封面上移，讀取卡片放在封面下方（封面太小，疊在河面上會遮到景物） */
-      /* 直向：封面變得很小，標題移到封面上方、讀取卡片放在封面下方，都不疊在圖上 */
+      /* 直向：封面變小，標題移到封面上方、按鈕移到下方，不疊在圖上 */
       @media (orientation: portrait) {
-        #loading .ld-blur { filter: blur(26px) brightness(1.08) saturate(0.9); }
-        #loading .ld-stage { top: 50%; border-radius: 4px; box-shadow: 0 10px 30px rgba(60, 30, 15, 0.25); }
-        #loading .ld-title {
-          left: 50%; top: auto; bottom: calc(100% + 26px); transform: translateX(-50%);
-          width: 100vw; text-align: center;
+        #home .hm-stage { top: 48%; }
+        #home .hm-title { left: 50%; top: auto; bottom: calc(100% + 26px); transform: translateX(-50%); width: 100vw; text-align: center; }
+        #home.show .hm-title { animation: none; }
+        #home .hm-title h1 { font-size: clamp(34px, 11vw, 64px); margin-right: -0.16em; }
+        #home .hm-title p { font-size: clamp(14px, 4.2vw, 22px); margin: 10px -0.22em 0 0; }
+        #home .hm-actions {
+          left: 50%; bottom: auto; top: calc(100% + 26px); transform: translateX(-50%);
+          flex-wrap: wrap; justify-content: center; width: 92vw; gap: 10px; white-space: normal;
         }
-        #loading .ld-title h1 { font-size: clamp(34px, 11vw, 64px); letter-spacing: 0.16em; margin-right: -0.16em; }
-        #loading .ld-title p { font-size: clamp(14px, 4.2vw, 22px); margin: 10px -0.16em 0 0; }
-        #loading .ld-panel {
-          left: 50%; bottom: auto; top: calc(100% + 28px); transform: translateX(-50%);
-          width: min(320px, 86vw);
-        }
+        #home .hm-primary { width: min(260px, 76vw); height: 54px; font-size: 18px; flex-basis: 100%; max-width: 260px; }
+        #home .hm-secondary { width: 132px; height: 44px; font-size: 15px; }
+        #home .hm-link { flex-basis: 100%; text-align: center; font-size: 13px; background: none; }
+        #home .hm-note { left: 50%; bottom: auto; top: calc(100% + 210px); }
       }
-      @media (prefers-reduced-motion: reduce) {
-        #loading .ld-bob, #loading.waiting .ld-bob, #loading .ld-start-text { animation: none; }
-        #loading.waiting .ld-bob { left: 50%; }
-      }
+      @media (prefers-reduced-motion: reduce) { #home, #home .hm-title { transition: none; animation: none; } }
     </style>
   </head>
   <body>
-    <div id="loading" class="waiting" role="status" aria-live="polite">
-      <img class="ld-blur" src="/assets/opt/cover-sm.webp" alt="" aria-hidden="true" />
-      <div class="ld-stage">
-        <picture>
-          <source media="(max-width: 699px)" srcset="/assets/opt/cover-sm.webp" />
-          <img class="ld-art" src="/assets/opt/cover.webp" alt="" />
-        </picture>
-        <div class="ld-title">
-          <h1>河岸日和</h1>
-          <p>在小村裡，慢慢過日子</p>
+    <div id="loading" role="status" aria-live="polite">
+      <img class="ld-plants" src="/assets/ui/ld_plants.webp" alt="" aria-hidden="true" />
+      <div class="ld-col">
+        <img class="ld-branch" src="/assets/ui/ld_branch.webp" alt="" aria-hidden="true" />
+        <img class="ld-village" src="/assets/ui/ld_village.webp" alt="" aria-hidden="true" />
+        <div class="ld-bar">
+          <div class="ld-trough"><div class="ld-fill"><img class="ld-water" src="/assets/ui/ld_water.webp" alt="" /></div></div>
+          <img class="ld-frame" src="/assets/ui/ld_frame.webp" alt="" />
+          <img class="ld-cat" src="/assets/ui/ld_cat.webp" alt="" aria-hidden="true" />
         </div>
-        <div class="ld-panel">
-          <div class="ld-row"><span class="ld-text">載入中</span><span class="ld-pct"></span></div>
-          <div class="ld-track"><div class="ld-fill"></div><div class="ld-bob"></div></div>
-        </div>
+        <div class="ld-status">正在前往河岸小村…</div>
+        <div class="ld-pct">0%</div>
+        <div class="ld-tip">慢慢走，也會遇見好風景</div>
+        <div class="ld-error" hidden><p></p><button type="button" class="ld-retry">重試</button><button type="button" class="ld-skip">仍要進入</button></div>
       </div>
     </div>
     <div id="game"></div>
-    <div id="ui"></div>
+    <div id="ui">
+      <div id="home" class="hidden" aria-hidden="true">
+        <div class="hm-stage">
+          <img class="hm-art" alt="" />
+          <div class="hm-title">
+            <h1>河岸日和</h1>
+            <p>在小村裡，慢慢過日子</p>
+          </div>
+          <div class="hm-actions">
+            <button type="button" class="hm-btn hm-primary" data-act="start">開始散步</button>
+            <button type="button" class="hm-btn hm-secondary" data-act="help">玩法說明</button>
+            <button type="button" class="hm-btn hm-secondary" data-act="settings">設定</button>
+            <button type="button" class="hm-link" data-act="restart" hidden>重新開始</button>
+          </div>
+          <p class="hm-note">♪ 開始後會播放背景音樂</p>
+        </div>
+      </div>
+    </div>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

@@ -88,6 +88,11 @@ const T = {
     const { optimizeAssets } = await import('./optimizeAssets.js');
     return optimizeAssets();
   },
+  // 從素材板裁切讀取畫面、地面與封面素材（src/dev/sliceSheets.js）
+  async slice() {
+    const { sliceSheets } = await import('./sliceSheets.js');
+    return sliceSheets();
+  },
   unsnap() { const o = document.getElementById('snapimg'); if (o) o.style.display = 'none'; },
 };
 window.T = T;

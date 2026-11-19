@@ -178,6 +178,23 @@ export const save = {
     this.persist();
   },
 
+  /**
+   * 是否有「有效存檔」（首頁顯示「繼續散步」）：存檔可以讀取，且真的玩過
+   * （有角色位置、魚或玩偶紀錄、委託、喝過茶）。只改過設定不算。
+   */
+  hasSave() {
+    try {
+      const raw = localStorage.getItem(SAVE_KEY);
+      if (!raw) return false;
+      const d = JSON.parse(raw);
+      if (!d || typeof d !== 'object') return false;
+      const any = (o) => !!o && typeof o === 'object' && Object.keys(o).length > 0;
+      return !!d.player || any(d.fishLog) || any(d.plushLog) || any(d.quests) || (d.stats?.teaCups || 0) > 0;
+    } catch {
+      return false;
+    }
+  },
+
   setting(key, value) {
     this.data.settings[key] = value;
     this.persist();

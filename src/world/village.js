@@ -68,6 +68,113 @@ function seamlessPattern(ctx, src, size, inset = 8, wash = null) {
   return ctx.createPattern(t, 'repeat');
 }
 
+// ---------- 地板素材（柔和草地、踏石、草叢花苔） ----------
+const GRASS_WORLD = 300; // 一塊草地圖塊在世界中的大小（像素）
+
+function grassPattern(ctx, img) {
+  const p = ctx.createPattern(img, 'repeat');
+  p.setTransform(new DOMMatrix().scale(GRASS_WORLD / img.width));
+  return p;
+}
+
+/**
+ * 草地：一種無縫草地鋪滿底色，另外兩種以「大範圍、邊緣完全柔化」的色塊低對比混入。
+ * 每個色塊先在暫存畫布填上圖樣（與世界座標對齊，不會錯位），再用徑向漸層遮罩把邊緣淡掉，
+ * 疊上時再壓低透明度 —— 不會形成方格或棋盤格。暫存畫布重複使用。
+ */
+function paintSoftGrass(ctx, W, H, rnd, base, variants) {
+  ctx.fillStyle = grassPattern(ctx, base);
+  ctx.fillRect(0, 0, W, H);
+  const pats = variants.map((v) => grassPattern(ctx, v));
+  const maxR = 440;
+  const tmp = document.createElement('canvas');
+  tmp.width = maxR * 2;
+  tmp.height = maxR * 2;
+  const t = tmp.getContext('2d');
+  for (let i = 0; i < 34; i++) {
+    const r = 220 + rnd() * (maxR - 220);
+    const x = rnd() * W;
+    const y = rnd() * H;
+    t.clearRect(0, 0, tmp.width, tmp.height);
+    t.save();
+    t.translate(-(x - r), -(y - r)); // 與世界座標對齊
+    t.fillStyle = pats[i % pats.length];
+    t.fillRect(x - r, y - r, r * 2, r * 2);
+    t.restore();
+    const g = t.createRadialGradient(r, r, 0, r, r, r);
+    g.addColorStop(0, 'rgba(0,0,0,1)');
+    g.addColorStop(0.55, 'rgba(0,0,0,0.6)');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    t.globalCompositeOperation = 'destination-in';
+    t.fillStyle = g;
+    t.fillRect(0, 0, r * 2, r * 2);
+    t.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 0.42 + rnd() * 0.18;
+    ctx.drawImage(tmp, 0, 0, r * 2, r * 2, x - r, y - r, r * 2, r * 2);
+    ctx.globalAlpha = 1;
+  }
+  // 極淡的大範圍明暗（只打散一點點重複感，不增加對比）
+  for (let i = 0; i < 40; i++) {
+    const x = rnd() * W;
+    const y = rnd() * H;
+    const r = 160 + rnd() * 240;
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, rnd() > 0.5 ? 'rgba(255,246,210,0.05)' : 'rgba(50,70,30,0.04)');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(x - r, y - r, r * 2, r * 2);
+  }
+}
+
+/** 踏石小徑：沿折線等距放置；左右交錯一點點（像腳步），大小一致、方向自然，石頭之間保留草地 */
+function paintSteppingPath(ctx, path, stones, rnd) {
+  const pts = path.pts;
+  const segs = [];
+  let total = 0;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [x1, y1] = pts[i];
+    const [x2, y2] = pts[i + 1];
+    const len = Math.hypot(x2 - x1, y2 - y1);
+    segs.push({ x1, y1, dx: (x2 - x1) / len, dy: (y2 - y1) / len, len, at: total });
+    total += len;
+  }
+  const n = Math.max(2, Math.round(total / path.spacing) + 1);
+  let last = -1;
+  for (let k = 0; k < n; k++) {
+    const d = (total * k) / (n - 1);
+    const s = segs.find((g) => d <= g.at + g.len + 0.01) || segs[segs.length - 1];
+    const u = d - s.at;
+    const side = (k % 2 ? 1 : -1) * (3 + rnd() * 3); // 左右交錯
+    const x = s.x1 + s.dx * u - s.dy * side;
+    const y = s.y1 + s.dy * u + s.dx * side;
+    let idx = Math.floor(rnd() * stones.length);
+    if (idx === last) idx = (idx + 1) % stones.length; // 相鄰兩塊不用同一種
+    last = idx;
+    const img = stones[idx];
+    const w = 44 + rnd() * 8; // 石頭寬 44～52px（主角腳底碰撞寬 30px，一步一塊、不像巨石）
+    const h = (w * img.height) / img.width * 0.82; // 稍微壓扁，配合俯視角度
+    const rot = Math.atan2(s.dy, s.dx) * 0.15 + (rnd() - 0.5) * 0.25;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(rot);
+    ctx.fillStyle = 'rgba(60,52,30,0.16)'; // 落在草地上的淡影
+    ctx.beginPath(); ctx.ellipse(1.5, 2.5, w * 0.5, h * 0.48, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.drawImage(img, -w / 2, -h / 2, w, h);
+    ctx.restore();
+  }
+}
+
+/** 草叢／花／苔蘚：以底部為錨點放在地面上 */
+function drawDeco(ctx, img, x, y, scale, flip) {
+  const w = img.width * scale;
+  const h = img.height * scale;
+  ctx.save();
+  ctx.translate(x, y);
+  if (flip) ctx.scale(-1, 1);
+  ctx.drawImage(img, -w / 2, -h, w, h);
+  ctx.restore();
+}
+
 function tracePath(ctx, s) {
   ctx.beginPath();
   if (s.type === 'ellipse') ctx.ellipse(s.x, s.y, s.rx, s.ry, 0, 0, Math.PI * 2);
@@ -152,6 +259,14 @@ function drawWall(ctx, wall, x1, x2, edge, face, { stoneOnly = false, noShadow =
     }
     ctx.restore();
   }
+  // 草頂：原圖的草比新的柔和草地鮮豔，染一層鼠尾草綠讓兩者接得起來
+  if (cap) {
+    ctx.save();
+    ctx.globalCompositeOperation = 'color';
+    ctx.fillStyle = 'rgba(150,170,120,0.85)';
+    ctx.fillRect(x1, edge - cap - 4, x2 - x1, cap + 10);
+    ctx.restore();
+  }
   ctx.restore();
   if (noShadow) return;
   // 牆腳投影（落在下一層地面上）
@@ -182,27 +297,15 @@ export function buildVillage(scene, map) {
   c.height = H;
   const ctx = c.getContext('2d');
 
-  // 草地：降低對比（覆蓋一層同色系淡色），避免整片畫面過度繁雜
-  const grass = seamlessPattern(ctx, tex('tile_grass'), 170, 30, 'rgba(150,178,96,0.38)');
   const dirt = seamlessPattern(ctx, tex('tile_dirt'), 160, 28, 'rgba(206,170,120,0.18)');
   const cobble = seamlessPattern(ctx, tex('tile_cobble'), 100, 14, 'rgba(206,190,163,0.38)');
   const street = seamlessPattern(ctx, tex('tile_old_street'), 140, 0, 'rgba(206,191,164,0.18)');
   const walkway = seamlessPattern(ctx, tex('tile_dirt'), 112, 28, 'rgba(198,184,158,0.52)');
 
-  ctx.fillStyle = grass;
-  ctx.fillRect(0, 0, W, H);
-  // 大面積、低對比的明暗變化，打散圖樣的重複感
-  for (let i = 0; i < 90; i++) {
-    const x = rnd() * W;
-    const y = rnd() * H;
-    const r = 120 + rnd() * 220;
-    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
-    const light = rnd() > 0.5;
-    g.addColorStop(0, light ? 'rgba(255,240,180,0.07)' : 'rgba(40,70,20,0.06)');
-    g.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = g;
-    ctx.fillRect(x - r, y - r, r * 2, r * 2);
-  }
+  // 草地（地板素材）：柔和的鼠尾草綠。
+  // 底色只用一種可無縫鋪設的草地（grass_b）；另外兩種只以大範圍、邊緣完全柔化的色塊低對比混入，
+  // 不以方格交替鋪設，也就不會出現棋盤格。整片地面只烘焙一次（這張畫布）。
+  paintSoftGrass(ctx, W, H, rnd, tex('ground_grass_b'), [tex('ground_grass_a'), tex('ground_grass_c')]);
   // 上層台地受光較多（略亮、略暖）
   ctx.fillStyle = 'rgba(255,236,190,0.06)';
   ctx.fillRect(0, T.upper.top, W, T.upper.edge - T.upper.top);
@@ -222,15 +325,9 @@ export function buildVillage(scene, map) {
   for (const s of map.roads.plaza) paintShape(ctx, s, '#bdac90', 3);
   for (const s of map.roads.plaza) paintShape(ctx, s, cobble);
 
-  // 踏石
-  for (const [x, y] of map.stepping) {
-    ctx.fillStyle = 'rgba(70,60,40,0.25)';
-    ctx.beginPath(); ctx.ellipse(x + 2, y + 3, 17, 9, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#b8b0a0';
-    ctx.beginPath(); ctx.ellipse(x, y, 16, 8.5, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = 'rgba(255,250,235,0.35)';
-    ctx.beginPath(); ctx.ellipse(x - 3, y - 2, 9, 4, 0, 0, Math.PI * 2); ctx.fill();
-  }
+  // 踏石小徑（地板素材的六種踏石；只是地面裝飾，不影響碰撞）
+  const stones = [1, 2, 3, 4, 5, 6].map((n) => tex(`ground_stone_${n}`));
+  for (const path of map.stepPaths) paintSteppingPath(ctx, path, stones, rnd);
 
   // 緩坡：上亮下暗的漸層，表現由高到低；坡道兩側的小石緣
   const RP = map.ramp;
@@ -430,29 +527,39 @@ export function buildVillage(scene, map) {
   }
 
   // ---- 花草：只在指定的花壇位置（牆角、入口、樹根、路邊） ----
-  const flowerColors = ['#f6b8c6', '#ffffff', '#f7dc84', '#f1a1b5', '#c9b6e8', '#9db4e6'];
   const canDecorate = (x, y) =>
     x > 34 && x < W - 34 && y > T.upper.top + 10 && y < H - 40 && !inRect(x, y, R, 6) && !onRoad(x, y, 3) && !nearObject(x, y, 6) && !onWall(x, y) && !onStairs(x, y) &&
     !inRect(x, y, { x: map.garden.x1, y: map.garden.y1, w: map.garden.x2 - map.garden.x1, h: map.garden.y2 - map.garden.y1 }, 10);
+  // 地板素材的草叢、花、苔蘚：集中在邊緣、牆角、樹根與入口，不平均撒滿整片草地
+  const deco = {
+    tuft: ['tuft_1', 'tuft_2', 'tuft_3'].map((k) => tex(`ground_${k}`)),
+    flower: ['daisy', 'flowers'].map((k) => tex(`ground_${k}`)),
+    moss: ['moss_1', 'moss_2'].map((k) => tex(`ground_${k}`)),
+  };
+  const pick = (arr) => arr[Math.floor(rnd() * arr.length)];
+  const okDeco = (x, y) => canDecorate(x, y) || (!onRoad(x, y, -8) && !onWall(x, y) && !onStairs(x, y) && !inRect(x, y, R, 4) && !nearObject(x, y, 2) && y > T.upper.top + 10);
+  const place = (img, x, y, s) => { if (okDeco(x, y)) drawDeco(ctx, img, x, y, s, rnd() > 0.5); };
+  // 花壇位置（牆角、入口、路邊）：一叢花＋旁邊一兩撮草
   for (const b of map.flowerBeds) {
-    for (let i = 0; i < b.n; i++) {
-      const x = b.x + (rnd() - 0.5) * 60;
-      const y = b.y + (rnd() - 0.5) * 18;
-      if (!onWall(x, y) && !onStairs(x, y) && !inRect(x, y, R, 4)) flower(ctx, x, y, flowerColors[Math.floor(rnd() * flowerColors.length)], rnd, 3);
-    }
+    place(pick(deco.flower), b.x + (rnd() - 0.5) * 16, b.y, 0.44);
+    place(pick(deco.tuft), b.x - 22 - rnd() * 10, b.y + 4, 0.4);
+    if (b.n >= 3) place(pick(rnd() > 0.5 ? deco.tuft : deco.moss), b.x + 24 + rnd() * 10, b.y + 3, 0.38);
   }
+  // 樹根：苔蘚或草叢
   for (const o of map.objects) {
     if (!o.leaves) continue;
-    for (let i = 0; i < 3; i++) {
-      const x = o.x + (rnd() - 0.5) * 80;
-      const y = o.y + 6 + rnd() * 14;
-      if (canDecorate(x, y)) tuft(ctx, x, y, '#6f9650');
-    }
+    place(pick(deco.moss), o.x - 26 - rnd() * 14, o.y + 8, 0.42);
+    if (rnd() > 0.4) place(pick(deco.tuft), o.x + 24 + rnd() * 14, o.y + 10, 0.38);
   }
-  for (let i = 0; i < 260; i++) {
-    const x = rnd() * W;
-    const y = rnd() * H;
-    if (canDecorate(x, y)) tuft(ctx, x, y, ['#86a862', '#7a9d58', '#8fb26a'][i % 3]);
+  // 石階兩側的牆腳：苔蘚與草叢（入口處）
+  for (const s of map.stairs) {
+    const foot = s.top + s.height + 8;
+    place(pick(deco.moss), s.x - s.width / 2 - 14, foot, 0.4);
+    place(pick(deco.tuft), s.x + s.width / 2 + 16, foot + 2, 0.38);
+  }
+  // 上層擋土牆腳：稀疏、間隔不一
+  for (let x = 120; x < T.upper.wallX[1] - 80; x += 300 + rnd() * 260) {
+    place(pick(rnd() > 0.5 ? deco.moss : deco.tuft), x, T.upper.edge + T.upper.face + 12, 0.38);
   }
 
   if (scene.textures.exists('ground')) scene.textures.remove('ground');
