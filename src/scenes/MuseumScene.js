@@ -9,7 +9,7 @@ import { touch } from '../core/touch.js';
 import { rng } from '../world/village.js';
 import { idleFrame } from './BootScene.js';
 
-// 承翰故事館室內：三個主題展區，每件展品是館內的一件擺設（書桌、筆記、照片、地圖、陶器、電腦…）
+// 我的故事館室內：三個主題展區，每件展品是館內的一件擺設（書桌、筆記、照片、地圖、陶器、電腦…）
 // 操作：← → 選擇、E／Enter 查看詳細（HTML 視窗），也可以滑鼠點擊；Esc 回到室外。
 // 展品文字與圖片對應在 src/data/museumExhibits.js。
 

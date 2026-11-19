@@ -1,4 +1,4 @@
-// 承翰故事館展品資料（文字與圖片對應集中在這裡，方便日後更新）
+// 我的故事館展品資料（文字與圖片對應集中在這裡，方便日後更新）
 //
 // 資料來源：專案內「承翰_自我介紹簡報」資料夾（簡報.html 與其圖片、影片）。
 // 原則：摘要保留原意，不編造資料或數據；簡報沒有提供的內容不顯示（欄位留空即可）。
@@ -13,7 +13,7 @@
 // - sections：[{ heading, items[] }] 補充條列
 // - images：[{ src, caption, credit }]；video：{ src, caption, credit }
 
-export const MUSEUM_TITLE = '承翰故事館';
+export const MUSEUM_TITLE = '我的故事館';
 const A = (f) => `assets/museum/${f}`;
 
 export const ZONES = [

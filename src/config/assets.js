@@ -21,7 +21,7 @@ export const SPRITES = {
   bld_engawa: { file: S('bld_engawa'), height: 290 }, // 緣側民宅
   bld_tea: { file: S('bld_tea'), height: 290 }, // 茶屋
   bld_farm: { file: S('bld_farm'), height: 260 }, // 農舍（附柴房）
-  museum: { file: S('museum'), height: 280 }, // 承翰故事館（素材.png）
+  museum: { file: S('museum_no_pots'), height: 280 }, // 我的故事館
 
   // ---- 場景素材圖.png ----
   tile_old_street: { file: S('tile_old_street'), height: 256 },

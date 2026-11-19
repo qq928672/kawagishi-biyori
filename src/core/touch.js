@@ -189,7 +189,7 @@ function applyButton(st, cfg) {
   st.el.classList.toggle('ready', !!cfg.ready);
   st.el.classList.toggle('urgent', !!cfg.urgent);
   st.el.classList.toggle('long', cfg.label.length > 3);
-  st.el.classList.toggle('xlong', cfg.label.length > 5); // 較長的互動名稱（例：進入承翰故事館）縮小並換行
+  st.el.classList.toggle('xlong', cfg.label.length > 5); // 較長的互動名稱（例：進入我的故事館）縮小並換行
 }
 
 /** 放開所有手指：搖桿歸零、按住的按鍵送出 keyup */

@@ -92,6 +92,38 @@ export class Cat {
     this.sprite.setDepth(this.y);
   }
 
+  showSpeechBubble(line) {
+    const { scene } = this;
+    const text = scene.add.text(0, 0, line, {
+      fontFamily: FONT, fontSize: '14px', fontStyle: 'bold', color: '#513726', resolution: 2,
+    }).setOrigin(0.5);
+    const width = text.width + 26;
+    const height = text.height + 12;
+    const left = -width / 2;
+    const top = -height - 8;
+    text.y = top + height / 2;
+
+    const frame = scene.add.graphics();
+    frame.fillStyle(0x38261a, 0.26);
+    frame.fillRoundedRect(left + 1, top + 3, width, height, 9);
+    frame.fillStyle(0x694831);
+    frame.fillRoundedRect(left, top, width, height, 9);
+    frame.fillTriangle(-7, -10, 7, -10, 0, 0);
+    frame.fillStyle(0xe4bb7e);
+    frame.fillRoundedRect(left + 2, top + 2, width - 4, height - 4, 7);
+    frame.fillStyle(0xffefd3);
+    frame.fillTriangle(-4, -12, 4, -12, 0, -4);
+    frame.fillRoundedRect(left + 3, top + 3, width - 6, height - 6, 6);
+
+    const bubble = scene.add.container(this.x, this.y - 52, [frame, text])
+      .setDepth(9200).setScale(0.8).setAlpha(0);
+    scene.tweens.add({ targets: bubble, scale: 1, alpha: 1, duration: 200, ease: 'Back.Out' });
+    scene.tweens.add({
+      targets: bubble, y: bubble.y - 10, alpha: 0, delay: 1450, duration: 350,
+      ease: 'Sine.In', onComplete: () => bubble.destroy(),
+    });
+  }
+
   /** 玩家按 E：抬頭、喵一聲、愛心；有冷卻避免連按 */
   interact() {
     if (this.elapsed < this.cooldownUntil) return false;
@@ -100,10 +132,7 @@ export class Cat {
     this.enter('lookUp', 2600);
     audio.play('meow');
     const line = Phaser.Utils.Array.GetRandom(CAT_LINES);
-    const t = this.scene.add.text(this.x, this.y - 52, line, {
-      fontFamily: FONT, fontSize: '15px', color: '#4a3426', resolution: 2, backgroundColor: '#fff8ea', padding: { x: 8, y: 3 },
-    }).setOrigin(0.5, 1).setDepth(9200);
-    this.scene.tweens.add({ targets: t, y: t.y - 14, alpha: 0, delay: 1300, duration: 600, onComplete: () => t.destroy() });
+    this.showSpeechBubble(line);
     for (let i = 0; i < 3; i++) {
       const h = this.scene.add.image(this.x + (i - 1) * 14, this.y - 40, 'heart').setScale(0.5 / TEX_SCALE * 1.4).setDepth(9150).setAlpha(0);
       this.scene.tweens.add({ targets: h, y: h.y - 34 - i * 6, alpha: { from: 1, to: 0 }, delay: i * 140, duration: 1100, onComplete: () => h.destroy() });
